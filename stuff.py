@@ -1,4 +1,6 @@
 from Tradinhood import Robinhood
 
 rbh = Robinhood()
-rbh.login()
+#rbh.login()
+dogecoin = rbh.currencies['DOGE']
+print(dogecoin.price)
