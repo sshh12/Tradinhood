@@ -1,11 +1,15 @@
 import requests
 from decimal import getcontext, Decimal
+import uuid
 
 getcontext().prec = 18
 
 ENDPOINTS = {
     'token': 'https://api.robinhood.com/oauth2/token/',
     'accounts': 'https://api.robinhood.com/accounts/',
+    'nummus_accounts': 'https://nummus.robinhood.com/accounts/',
+    'nummus_order': 'https://nummus.robinhood.com/orders/',
+    'holdings': 'https://nummus.robinhood.com/holdings/',
     'currency_pairs': 'https://nummus.robinhood.com/currency_pairs/',
     'forex_market_quote': 'https://api.robinhood.com/marketdata/forex/quotes/'
 }
@@ -43,12 +47,16 @@ class Robinhood:
             currency = Currency(self.session, curr_json)
             self.currencies[currency.code] = currency
 
-    def _load_auth(self, acc_num=None):
+    def _load_auth(self, acc_num=None, nummus_id=None):
 
         res_json = self.session.get(ENDPOINTS['accounts']).json()['results']
+        res_nummus_json = self.session.get(ENDPOINTS['nummus_accounts']).json()['results']
 
         if not acc_num:
             acc_num = res_json[0]['account_number']
+
+        if not nummus_id:
+            nummus_id = res_nummus_json[0]['id']
 
         for account_json in res_json:
 
@@ -56,11 +64,13 @@ class Robinhood:
 
                 self.acc_num = acc_num
 
-                return True
+        for account_json in res_nummus_json:
 
-        raise Exception('Account not found!')
+            if account_json['id'] == nummus_id:
 
-    def login(self, username='', password='', token='', acc_num=None):
+                self.nummus_id = nummus_id
+
+    def login(self, username='', password='', token='', acc_num=None, nummus_id=None):
 
         if token:
             self.token = token
@@ -94,11 +104,67 @@ class Robinhood:
 
             self.token = res_json['access_token']
             self.session.headers['Authorization'] = 'Bearer ' + self.token
-            self._load_auth(acc_num)
+            self._load_auth(acc_num, nummus_id)
 
             return True
 
         return False
+
+    def quantity(self, asset):
+
+        if isinstance(asset, Currency):
+
+            currs = self.holdings
+
+            for curr in currs:
+
+                if curr['currency']['code'] == asset.code:
+
+                    return Decimal(curr['quantity_available'])
+
+            return Decimal('0')
+
+        else:
+            raise Exception('Invalid asset!')
+
+    def _order(self, order_type, asset, amt, type='market', price=None):
+
+        assert order_type == 'buy' or order_type == 'sell'
+
+        if not price:
+            price = asset.price
+
+        price = str(price)
+        amt = str(amt)
+
+        if isinstance(asset, Currency):
+
+            assert type == 'market' or type == 'limit'
+
+            req_json = {
+                'type': type,
+                'side': order_type,
+                'quantity': amt,
+                'account_id': self.nummus_id,
+                'currency_pair_id': asset.pair_id,
+                'price': price,
+                'ref_id': str(uuid.uuid4()),
+                'time_in_force': 'gtc'
+            }
+
+            res = self.session.post(ENDPOINTS['nummus_order'], json=req_json)
+            return res.json()
+
+        else:
+            raise Exception('Invalid asset!')
+
+    def buy(self, asset, amt, type='market', price=None):
+
+        self._order('buy', asset, amt, type, price)
+
+    def sell(self, asset, amt, type='market', price=None):
+
+        self._order('sell', asset, amt, type, price)
 
     @property
     def account_info(self):
@@ -109,6 +175,15 @@ class Robinhood:
             return res.json()
         except:
             raise Exception('Unable to access account!')
+
+    @property
+    def holdings(self):
+        try:
+            res = self.session.get(ENDPOINTS['holdings'])
+            res.raise_for_status()
+            return res.json()['results']
+        except:
+            raise Exception('Unable to access holdings!')
 
     @property
     def withdrawable_cash(self):
@@ -134,13 +209,13 @@ class Currency:
         self.symbol = self.json['symbol']
         self.tradable = (self.json['tradability'] == 'tradable')
         self.type = self.json['asset_currency']['type']
-        self.order_id = self.json['id']
+        self.pair_id = self.json['id']
         self.asset_id = self.json['asset_currency']['id']
 
     @property
     def current_quote(self):
         try:
-            res = self.session.get(ENDPOINTS['forex_market_quote'] + self.order_id + '/')
+            res = self.session.get(ENDPOINTS['forex_market_quote'] + self.pair_id + '/')
             res.raise_for_status()
             return res.json()
         except:
