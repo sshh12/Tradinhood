@@ -4,7 +4,8 @@ from decimal import getcontext, Decimal
 getcontext().prec = 18
 
 ENDPOINTS = {
-    'tokin': 'https://api.robinhood.com/oauth2/token/',
+    'token': 'https://api.robinhood.com/oauth2/token/',
+    'accounts': 'https://api.robinhood.com/accounts/',
     'currency_pairs': 'https://nummus.robinhood.com/currency_pairs/',
     'forex_market_quote': 'https://api.robinhood.com/marketdata/forex/quotes/'
 }
@@ -22,6 +23,8 @@ OAUTH_CLIENT_ID = 'c82SH0WZOsabOXGP2sxqcj34FxkvfnWRZBKlBjFS'
 
 class Robinhood:
 
+    token = None
+    acc_num = None
     currencies = {}
 
     def __init__(self):
@@ -40,7 +43,30 @@ class Robinhood:
             currency = Currency(self.session, curr_json)
             self.currencies[currency.code] = currency
 
-    def login(self, username='', password=''):
+    def _load_auth(self, acc_num=None):
+
+        res_json = self.session.get(ENDPOINTS['accounts']).json()['results']
+
+        if not acc_num:
+            acc_num = res_json[0]['account_number']
+
+        for account_json in res_json:
+
+            if account_json['account_number'] == acc_num:
+
+                self.acc_num = acc_num
+
+                return True
+
+        raise Exception('Account not found!')
+
+    def login(self, username='', password='', token='', acc_num=None):
+
+        if token:
+            self.token = token
+            self.session.headers['Authorization'] = 'Bearer ' + self.token
+            self._load_auth(acc_num)
+            return True
 
         if not username or not password:
 
@@ -58,7 +84,7 @@ class Robinhood:
         }
 
         try:
-            res = self.session.post(ENDPOINTS['tokin'], json=req_json)
+            res = self.session.post(ENDPOINTS['token'], json=req_json)
             res.raise_for_status()
             res_json = res.json()
         except:
@@ -68,9 +94,33 @@ class Robinhood:
 
             self.token = res_json['access_token']
             self.session.headers['Authorization'] = 'Bearer ' + self.token
+            self._load_auth(acc_num)
+
             return True
 
         return False
+
+    @property
+    def account_info(self):
+        try:
+            assert self.acc_num != None
+            res = self.session.get(ENDPOINTS['accounts'] + self.acc_num)
+            res.raise_for_status()
+            return res.json()
+        except:
+            raise Exception('Unable to access account!')
+
+    @property
+    def withdrawable_cash(self):
+        return Decimal(self.account_info['cash_available_for_withdrawal'])
+
+    @property
+    def buying_power(self):
+        return Decimal(self.account_info['buying_power'])
+
+    @property
+    def unsettled_funds(self):
+        return Decimal(self.account_info['unsettled_funds'])
 
 class Currency:
 
