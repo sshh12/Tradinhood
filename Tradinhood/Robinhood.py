@@ -34,7 +34,8 @@ class Robinhood:
     acc_num = None
     nummus_id = None
     logged_in = False
-    currencies = {}
+    _currencies = {}
+    _stocks = {}
 
     def __init__(self):
 
@@ -49,7 +50,7 @@ class Robinhood:
         for curr_json in asset_currs:
 
             currency = Currency(self.session, curr_json)
-            self.currencies[currency.code] = currency
+            self._currencies[currency.code] = currency
 
     def _load_auth(self, acc_num=None, nummus_id=None):
 
@@ -112,8 +113,11 @@ class Robinhood:
 
     def __getitem__(self, symbol):
 
-        if symbol in self.currencies:
-            return self.currencies[symbol]
+        if symbol in self._currencies:
+            return self._currencies[symbol]
+
+        if symbol in self._stocks:
+            return self._stocks[symbol]
 
         try:
 
@@ -122,7 +126,10 @@ class Robinhood:
             res = self.session.get(ENDPOINTS['instruments'] + '?active_instruments_only=false&symbol=' + symbol)
             res.raise_for_status()
             results = res.json()['results']
-            return Stock(self.session, results[0])
+
+            stock = Stock(self.session, results[0])
+            self._stocks[stock.symbol] = stock
+            return stock
 
         except:
             raise Exception('Unable to find asset')
@@ -130,6 +137,9 @@ class Robinhood:
     def quantity(self, asset, include_held=False):
 
         assert self.logged_in
+
+        if isinstance(asset, str):
+            asset = self.__getitem__(asset)
 
         if isinstance(asset, Currency):
 
@@ -147,7 +157,28 @@ class Robinhood:
 
                     return amt
 
-            return Decimal('0')
+            return Decimal('0.00')
+
+        elif isinstance(asset, Stock):
+
+            stocks = self.positions
+
+            for stock in stocks:
+
+                if asset.id in stock['instrument']:
+
+                    amt = Decimal(stock['quantity'])
+
+                    if include_held:
+                        amt += Decimal(stock['shares_held_for_buys'])
+                        amt += Decimal(stock['shares_held_for_sells'])
+                        amt += Decimal(stock['shares_held_for_options_collateral'])
+                        amt += Decimal(stock['shares_held_for_options_events'])
+                        amt += Decimal(stock['shares_held_for_stock_grants'])
+
+                    return amt
+
+            return Decimal('0.00')
 
         else:
             raise Exception('Invalid asset!')
@@ -212,6 +243,18 @@ class Robinhood:
 
         try:
             res = self.session.get(ENDPOINTS['holdings'])
+            res.raise_for_status()
+            return res.json()['results']
+        except:
+            raise Exception('Unable to access holdings')
+
+    @property
+    def positions(self):
+
+        assert self.logged_in
+
+        try:
+            res = self.session.get(ENDPOINTS['accounts'] + self.acc_num + '/positions/')
             res.raise_for_status()
             return res.json()['results']
         except:
