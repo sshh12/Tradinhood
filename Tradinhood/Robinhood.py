@@ -25,17 +25,18 @@ API_HEADERS = {
 
 OAUTH_CLIENT_ID = 'c82SH0WZOsabOXGP2sxqcj34FxkvfnWRZBKlBjFS'
 
+
 class Robinhood:
 
     token = None
     acc_num = None
+    nummus_id = None
     currencies = {}
 
     def __init__(self):
 
         self.session = requests.session()
         self.session.headers = API_HEADERS
-
         self._load()
 
     def _load(self):
@@ -53,22 +54,14 @@ class Robinhood:
         res_nummus_json = self.session.get(ENDPOINTS['nummus_accounts']).json()['results']
 
         if not acc_num:
-            acc_num = res_json[0]['account_number']
+            self.acc_num = res_json[0]['account_number']
+        else:
+            self.acc_num = acc_num
 
         if not nummus_id:
-            nummus_id = res_nummus_json[0]['id']
-
-        for account_json in res_json:
-
-            if account_json['account_number'] == acc_num:
-
-                self.acc_num = acc_num
-
-        for account_json in res_nummus_json:
-
-            if account_json['id'] == nummus_id:
-
-                self.nummus_id = nummus_id
+            self.nummus_id = res_nummus_json[0]['id']
+        else:
+            self.nummus_id = nummus_id
 
     def login(self, username='', password='', token='', acc_num=None, nummus_id=None):
 
@@ -98,7 +91,7 @@ class Robinhood:
             res.raise_for_status()
             res_json = res.json()
         except:
-            raise Exception('Login Failed')
+            raise Exception('Login failed')
 
         if 'access_token' in res_json:
 
@@ -110,7 +103,7 @@ class Robinhood:
 
         return False
 
-    def quantity(self, asset):
+    def quantity(self, asset, include_held=False):
 
         if isinstance(asset, Currency):
 
@@ -120,16 +113,22 @@ class Robinhood:
 
                 if curr['currency']['code'] == asset.code:
 
-                    return Decimal(curr['quantity_available'])
+                    amt = Decimal(curr['quantity_available'])
+
+                    if include_held:
+                        amt += Decimal(curr['quantity_held_for_buy'])
+                        amt += Decimal(curr['quantity_held_for_sell'])
+
+                    return amt
 
             return Decimal('0')
 
         else:
             raise Exception('Invalid asset!')
 
-    def _order(self, order_type, asset, amt, type='market', price=None):
+    def _order(self, order_type, asset, amt, type, price=None):
 
-        assert order_type == 'buy' or order_type == 'sell'
+        assert (order_type == 'buy' or order_type == 'sell')
 
         if not price:
             price = asset.price
@@ -139,7 +138,8 @@ class Robinhood:
 
         if isinstance(asset, Currency):
 
-            assert type == 'market' or type == 'limit'
+            assert (type == 'market' or type == 'limit')
+            assert asset.tradable
 
             req_json = {
                 'type': type,
@@ -156,7 +156,7 @@ class Robinhood:
             return res.json()
 
         else:
-            raise Exception('Invalid asset!')
+            raise Exception('Invalid asset')
 
     def buy(self, asset, amt, type='market', price=None):
 
@@ -174,7 +174,7 @@ class Robinhood:
             res.raise_for_status()
             return res.json()
         except:
-            raise Exception('Unable to access account!')
+            raise Exception('Unable to access account')
 
     @property
     def holdings(self):
@@ -183,7 +183,7 @@ class Robinhood:
             res.raise_for_status()
             return res.json()['results']
         except:
-            raise Exception('Unable to access holdings!')
+            raise Exception('Unable to access holdings')
 
     @property
     def withdrawable_cash(self):
@@ -219,12 +219,19 @@ class Currency:
             res.raise_for_status()
             return res.json()
         except:
-            raise Exception('Unable to access market data')
+            raise Exception('Unable to access currency data')
 
     @property
     def price(self):
         return Decimal(self.current_quote['mark_price'])
 
+    @property
+    def ask(self):
+        return Decimal(self.current_quote['ask_price'])
+
+    @property
+    def bid(self):
+        return Decimal(self.current_quote['bid_price'])
 
     def __repr__(self):
         return f'Currency<{self.name} [{self.code}]>'
