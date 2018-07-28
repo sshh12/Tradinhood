@@ -7,22 +7,22 @@ getcontext().prec = 18
 ENDPOINTS = {
     'token': 'https://api.robinhood.com/oauth2/token/',
     'accounts': 'https://api.robinhood.com/accounts/',
-    'instruments': 'https://api.robinhood.com/instruments/',
     'quotes': 'https://api.robinhood.com/quotes/',
     'orders': 'https://api.robinhood.com/orders/',
-    'nummus_accounts': 'https://nummus.robinhood.com/accounts/',
-    'nummus_order': 'https://nummus.robinhood.com/orders/',
     'holdings': 'https://nummus.robinhood.com/holdings/',
+    'instruments': 'https://api.robinhood.com/instruments/',
+    'nummus_order': 'https://nummus.robinhood.com/orders/',
     'currency_pairs': 'https://nummus.robinhood.com/currency_pairs/',
+    'nummus_accounts': 'https://nummus.robinhood.com/accounts/',
     'forex_market_quote': 'https://api.robinhood.com/marketdata/forex/quotes/'
 }
 
 API_HEADERS = {
     'Accept': '*/*',
+    'Connection': 'keep-alive',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/67.0.3396.99 Safari/537.36',
     'Accept-Encoding': 'gzip, deflate, br',
     'Accept-Language': 'en-US,en;q=0.9',
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/67.0.3396.99 Safari/537.36',
-    'Connection': 'keep-alive',
     'X-Robinhood-API-Version': '1.221.0'
 }
 
@@ -250,7 +250,7 @@ class Robinhood:
                 'instrument': asset.instrument_url,
                 'symbol': asset.symbol,
                 'ref_id': str(uuid.uuid4()),
-                'extended_hours': False # fix
+                'extended_hours': False
             }
 
             if stop_price:
