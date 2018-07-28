@@ -7,6 +7,8 @@ getcontext().prec = 18
 ENDPOINTS = {
     'token': 'https://api.robinhood.com/oauth2/token/',
     'accounts': 'https://api.robinhood.com/accounts/',
+    'instruments': 'https://api.robinhood.com/instruments/',
+    'quotes': 'https://api.robinhood.com/quotes/',
     'nummus_accounts': 'https://nummus.robinhood.com/accounts/',
     'nummus_order': 'https://nummus.robinhood.com/orders/',
     'holdings': 'https://nummus.robinhood.com/holdings/',
@@ -31,6 +33,7 @@ class Robinhood:
     token = None
     acc_num = None
     nummus_id = None
+    logged_in = False
     currencies = {}
 
     def __init__(self):
@@ -50,6 +53,8 @@ class Robinhood:
 
     def _load_auth(self, acc_num=None, nummus_id=None):
 
+        assert self.logged_in
+
         res_json = self.session.get(ENDPOINTS['accounts']).json()['results']
         res_nummus_json = self.session.get(ENDPOINTS['nummus_accounts']).json()['results']
 
@@ -68,6 +73,7 @@ class Robinhood:
         if token:
             self.token = token
             self.session.headers['Authorization'] = 'Bearer ' + self.token
+            self.logged_in = True
             self._load_auth(acc_num)
             return True
 
@@ -97,13 +103,33 @@ class Robinhood:
 
             self.token = res_json['access_token']
             self.session.headers['Authorization'] = 'Bearer ' + self.token
+            self.logged_in = True
             self._load_auth(acc_num, nummus_id)
 
             return True
 
         return False
 
+    def __getitem__(self, symbol):
+
+        if symbol in self.currencies:
+            return self.currencies[symbol]
+
+        try:
+
+            assert self.logged_in
+
+            res = self.session.get(ENDPOINTS['instruments'] + '?active_instruments_only=false&symbol=' + symbol)
+            res.raise_for_status()
+            results = res.json()['results']
+            return Stock(self.session, results[0])
+
+        except:
+            raise Exception('Unable to find asset')
+
     def quantity(self, asset, include_held=False):
+
+        assert self.logged_in
 
         if isinstance(asset, Currency):
 
@@ -129,6 +155,7 @@ class Robinhood:
     def _order(self, order_type, asset, amt, type, price=None):
 
         assert (order_type == 'buy' or order_type == 'sell')
+        assert asset.tradable
 
         if not price:
             price = asset.price
@@ -139,7 +166,6 @@ class Robinhood:
         if isinstance(asset, Currency):
 
             assert (type == 'market' or type == 'limit')
-            assert asset.tradable
 
             req_json = {
                 'type': type,
@@ -168,6 +194,9 @@ class Robinhood:
 
     @property
     def account_info(self):
+
+        assert self.logged_in
+
         try:
             assert self.acc_num != None
             res = self.session.get(ENDPOINTS['accounts'] + self.acc_num)
@@ -178,6 +207,9 @@ class Robinhood:
 
     @property
     def holdings(self):
+
+        assert self.logged_in
+
         try:
             res = self.session.get(ENDPOINTS['holdings'])
             res.raise_for_status()
@@ -235,3 +267,42 @@ class Currency:
 
     def __repr__(self):
         return f'Currency<{self.name} [{self.code}]>'
+
+class Stock:
+
+    def __init__(self, session, instrument_json):
+
+        self.session = session
+        self.json = instrument_json
+
+        self.id = self.json['id']
+        self.name = self.json['name']
+        self.simple_name = self.json['simple_name']
+        self.symbol = self.json['symbol']
+        self.code = self.symbol
+        self.tradable = (self.json['tradeable'] == True)
+        self.type = self.json['type']
+
+    @property
+    def current_quote(self):
+        try:
+            res = self.session.get(ENDPOINTS['quotes'] + self.symbol + '/')
+            res.raise_for_status()
+            return res.json()
+        except:
+            raise Exception('Unable to access stock data')
+
+    @property
+    def price(self):
+        return Decimal(self.current_quote['last_trade_price'])
+
+    @property
+    def ask(self):
+        return Decimal(self.current_quote['ask_price'])
+
+    @property
+    def bid(self):
+        return Decimal(self.current_quote['bid_price'])
+
+    def __repr__(self):
+        return f'Stock<{self.simple_name} [{self.symbol}]>'
