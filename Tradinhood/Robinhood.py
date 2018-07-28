@@ -9,6 +9,7 @@ ENDPOINTS = {
     'accounts': 'https://api.robinhood.com/accounts/',
     'instruments': 'https://api.robinhood.com/instruments/',
     'quotes': 'https://api.robinhood.com/quotes/',
+    'orders': 'https://api.robinhood.com/orders/',
     'nummus_accounts': 'https://nummus.robinhood.com/accounts/',
     'nummus_order': 'https://nummus.robinhood.com/orders/',
     'holdings': 'https://nummus.robinhood.com/holdings/',
@@ -33,6 +34,7 @@ class Robinhood:
     token = None
     acc_num = None
     nummus_id = None
+    account_url = None
     logged_in = False
     _currencies = {}
     _stocks = {}
@@ -63,6 +65,8 @@ class Robinhood:
             self.acc_num = res_json[0]['account_number']
         else:
             self.acc_num = acc_num
+
+        self.account_url = ENDPOINTS['accounts'] + self.acc_num + '/'
 
         if not nummus_id:
             self.nummus_id = res_nummus_json[0]['id']
@@ -183,45 +187,88 @@ class Robinhood:
         else:
             raise Exception('Invalid asset!')
 
-    def _order(self, order_type, asset, amt, type, price=None):
+    def _order(self, order_side, asset, amt, type='market', price=None, stop_price=None, time_in_force='gtc'):
 
-        assert (order_type == 'buy' or order_type == 'sell')
+        assert self.logged_in
+        assert order_side in ['buy', 'sell']
+        assert time_in_force in ['gtc', 'gfd', 'ioc', 'opg']
+
+        if isinstance(asset, str):
+            asset = self.__getitem__(asset)
+
         assert asset.tradable
 
         if not price:
             price = asset.price
 
         price = str(price)
-        amt = str(amt)
 
         if isinstance(asset, Currency):
 
-            assert (type == 'market' or type == 'limit')
+            assert type in ['market', 'limit']
+            assert stop_price == None
+
+            amt = str(amt)
 
             req_json = {
                 'type': type,
-                'side': order_type,
+                'side': order_side,
                 'quantity': amt,
                 'account_id': self.nummus_id,
                 'currency_pair_id': asset.pair_id,
                 'price': price,
                 'ref_id': str(uuid.uuid4()),
-                'time_in_force': 'gtc'
+                'time_in_force': time_in_force
             }
 
             res = self.session.post(ENDPOINTS['nummus_order'], json=req_json)
             return res.json()
 
+        elif isinstance(asset, Stock):
+
+            assert type in ['market', 'limit', 'stoploss', 'stoplimit']
+
+            order_type = 'market' if (type in ['market', 'stoploss']) else 'limit'
+            trigger = 'immediate' if (type in ['market', 'limit']) else 'stop'
+
+            amt = str(round(amt, 0))
+
+            if trigger == 'stop':
+                assert stop_price
+                stop_price = str(stop_price)
+            else:
+                assert stop_price == None
+
+            req_json = {
+                'time_in_force': time_in_force,
+                'price': price,
+                'quantity': amt,
+                'side': order_side,
+                'trigger': trigger,
+                'type': order_type,
+                'account': self.account_url,
+                'instrument': asset.instrument_url,
+                'symbol': asset.symbol,
+                'ref_id': str(uuid.uuid4()),
+                'extended_hours': False # fix
+            }
+
+            if stop_price:
+                req_json['stop_price'] = stop_price
+
+            res = self.session.post(ENDPOINTS['orders'], json=req_json)
+            return res.json()
+
         else:
             raise Exception('Invalid asset')
 
-    def buy(self, asset, amt, type='market', price=None):
+    def buy(self, asset, amt, **kwargs):
 
-        self._order('buy', asset, amt, type, price)
+        return self._order('buy', asset, amt, **kwargs)
 
-    def sell(self, asset, amt, type='market', price=None):
+    def sell(self, asset, amt, **kwargs):
 
-        self._order('sell', asset, amt, type, price)
+        return self._order('sell', asset, amt, **kwargs)
 
     @property
     def account_info(self):
@@ -325,6 +372,7 @@ class Stock:
         self.code = self.symbol
         self.tradable = (self.json['tradeable'] == True)
         self.type = self.json['type']
+        self.instrument_url = ENDPOINTS['instruments'] + self.id + '/'
 
     @property
     def current_quote(self):
