@@ -1,8 +1,8 @@
-import requests
 from decimal import getcontext, Decimal
+import requests
 import uuid
 
-getcontext().prec = 18
+getcontext().prec = 18 # The API seems to use 18 digits, so I copied that
 
 ENDPOINTS = {
     'token': 'https://api.robinhood.com/oauth2/token/',
@@ -17,7 +17,7 @@ ENDPOINTS = {
     'forex_market_quote': 'https://api.robinhood.com/marketdata/forex/quotes/'
 }
 
-API_HEADERS = {
+API_HEADERS = { # Default header params
     'Accept': '*/*',
     'Connection': 'keep-alive',
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/67.0.3396.99 Safari/537.36',
@@ -26,10 +26,30 @@ API_HEADERS = {
     'X-Robinhood-API-Version': '1.221.0'
 }
 
-OAUTH_CLIENT_ID = 'c82SH0WZOsabOXGP2sxqcj34FxkvfnWRZBKlBjFS'
+OAUTH_CLIENT_ID = 'c82SH0WZOsabOXGP2sxqcj34FxkvfnWRZBKlBjFS' # Extracted from robinhood web app
 
+class RobinhoodException(Exception):
+    """Basic Robinhood exception"""
+    pass
+
+class APIError(RobinhoodException):
+    """An issue interfacing with the Robinhood API"""
+    pass
+
+class UsageError(RobinhoodException):
+    """An issue using this interface"""
+    pass
 
 class Robinhood:
+    """Robinhood API interface
+
+    Attributes:
+        token: (str) API authorization token
+        acc_num: (str) Robinhood account number
+        nummus_id: (str) The account id associated with currencies
+        account_url: (str) The account url
+        logged_in: (bool) If successfully authenticated
+    """
 
     token = None
     acc_num = None
@@ -40,13 +60,13 @@ class Robinhood:
     _stocks = {}
 
     def __init__(self):
-
+        """Creates session used in client"""
         self.session = requests.session()
         self.session.headers = API_HEADERS
         self._load()
 
     def _load(self):
-
+        """Inits basic internal information"""
         asset_currs = self.session.get(ENDPOINTS['currency_pairs']).json()['results']
 
         for curr_json in asset_currs:
@@ -55,13 +75,16 @@ class Robinhood:
             self._currencies[currency.code] = currency
 
     def _load_auth(self, acc_num=None, nummus_id=None):
+        """Inits internal account information from Robinhood
 
+        Args:
+            acc_num: (str, optional) Manual specify the account number
+            nummus_id: (str, optional) Manual specify the nummus id
+        """
         assert self.logged_in
 
-        res_json = self.session.get(ENDPOINTS['accounts']).json()['results']
-        res_nummus_json = self.session.get(ENDPOINTS['nummus_accounts']).json()['results']
-
         if not acc_num:
+            res_json = self.session.get(ENDPOINTS['accounts']).json()['results']
             self.acc_num = res_json[0]['account_number']
         else:
             self.acc_num = acc_num
@@ -69,24 +92,40 @@ class Robinhood:
         self.account_url = ENDPOINTS['accounts'] + self.acc_num + '/'
 
         if not nummus_id:
+            res_nummus_json = self.session.get(ENDPOINTS['nummus_accounts']).json()['results']
             self.nummus_id = res_nummus_json[0]['id']
         else:
             self.nummus_id = nummus_id
 
-    def login(self, username='', password='', token='', acc_num=None, nummus_id=None):
+    def login(self, token='', username='', password='', acc_num=None, nummus_id=None):
+        """Login/Authenticate
 
-        if token:
+        Args:
+            token: (str) Required if username/password not given, bypasses login
+                since API token already known
+            username: (str) Required login information if token not specified
+            password: (str) Required login information if token not specified
+            acc_num: (str, optional) Manual specify the account number
+            nummus_id: (str, optional) Manual specify the nummus id
+
+        Returns:
+            (bool) If login was successful
+
+        Raises:
+            APIError: If login fails
+        """
+        if token: # Skip login
             self.token = token
             self.session.headers['Authorization'] = 'Bearer ' + self.token
             self.logged_in = True
             self._load_auth(acc_num)
             return True
 
-        if not username or not password:
+        if not username or not password: # If not provided, manually prompt
 
             import getpass
             username = input('Username > ')
-            password = getpass.getpass('Password > ')
+            password = getpass.getpass('Password (Hidden) > ')
 
         req_json = {
             'client_id': OAUTH_CLIENT_ID,
@@ -102,7 +141,7 @@ class Robinhood:
             res.raise_for_status()
             res_json = res.json()
         except:
-            raise Exception('Login failed')
+            raise APIError('Login failed')
 
         if 'access_token' in res_json:
 
@@ -116,16 +155,26 @@ class Robinhood:
         return False
 
     def __getitem__(self, symbol):
+        """Access items using robinhood[symbol]
 
-        if symbol in self._currencies:
+        Args:
+            symbol: (str) The currency or stock symbol, ex. AMZN, DOGE
+
+        Returns:
+            (Currency | Stock) The object associated with that symbol
+
+        Raises:
+            APIError: If symbol cannot be associated with a stock or currency
+        """
+        if symbol in self._currencies: # check caches first
             return self._currencies[symbol]
 
-        if symbol in self._stocks:
+        if symbol in self._stocks: # check caches first
             return self._stocks[symbol]
 
         try:
 
-            assert self.logged_in
+            assert self.logged_in # instruments endpoint requires auth
 
             res = self.session.get(ENDPOINTS['instruments'] + '?active_instruments_only=false&symbol=' + symbol)
             res.raise_for_status()
@@ -136,10 +185,21 @@ class Robinhood:
             return stock
 
         except:
-            raise Exception('Unable to find asset')
+            raise APIError('Unable to find asset')
 
     def quantity(self, asset, include_held=False):
+        """Get owned quantity of asset
 
+        Args:
+            asset: (Currency | Stock | str) The query currency/stock or symbol
+            include_held: (bool, optional) Whether to included held assets in the tally
+
+        Returns:
+            (Decimal) Quantity of asset owned
+
+        Raises:
+            UsageError: If the asset is not valid
+        """
         assert self.logged_in
 
         if isinstance(asset, str):
@@ -185,20 +245,23 @@ class Robinhood:
             return Decimal('0.00')
 
         else:
-            raise Exception('Invalid asset!')
+            raise UsageError('Invalid asset')
 
     def _order(self, order_side, asset, amt, type='market', price=None, stop_price=None, time_in_force='gtc'):
+        """Internal order method
 
+        See .buy(...) and .sell(...)
+        """
         assert self.logged_in
         assert order_side in ['buy', 'sell']
         assert time_in_force in ['gtc', 'gfd', 'ioc', 'opg']
 
-        if isinstance(asset, str):
+        if isinstance(asset, str): # convert str to asset
             asset = self.__getitem__(asset)
 
         assert asset.tradable
 
-        if not price:
+        if not price: # if price not given just use current or last known price
             price = asset.price
 
         price = str(price)
@@ -217,7 +280,7 @@ class Robinhood:
                 'account_id': self.nummus_id,
                 'currency_pair_id': asset.pair_id,
                 'price': price,
-                'ref_id': str(uuid.uuid4()),
+                'ref_id': str(uuid.uuid4()), # Generated temp id
                 'time_in_force': time_in_force
             }
 
@@ -228,10 +291,11 @@ class Robinhood:
 
             assert type in ['market', 'limit', 'stoploss', 'stoplimit']
 
+            # Convert types into correct parameters
             order_type = 'market' if (type in ['market', 'stoploss']) else 'limit'
             trigger = 'immediate' if (type in ['market', 'limit']) else 'stop'
 
-            amt = str(round(amt, 0))
+            amt = str(round(amt, 0)) # Shares must be integers
 
             if trigger == 'stop':
                 assert stop_price
@@ -249,8 +313,8 @@ class Robinhood:
                 'account': self.account_url,
                 'instrument': asset.instrument_url,
                 'symbol': asset.symbol,
-                'ref_id': str(uuid.uuid4()),
-                'extended_hours': False
+                'ref_id': str(uuid.uuid4()), # Generated temp id
+                'extended_hours': False # not sure what this is
             }
 
             if stop_price:
@@ -260,19 +324,53 @@ class Robinhood:
             return res.json()
 
         else:
-            raise Exception('Invalid asset')
+            raise UsageError('Invalid asset')
 
     def buy(self, asset, amt, **kwargs):
+        """Buy item
 
+        Args:
+            asset: (Currency | Stock | str) The asset to be bought
+            amt: (Decimal | float | int) The amt to buy
+            type: (str, optional) The order type
+                ['market', 'limit', 'stoploss', 'stoplimit']
+            price: (Decimal | float | int) The order price
+            stop_price: (Decimal | float | int) The stop price, required if using stoploss/stoplimit
+            time_in_force: (str, optional) When to cancel
+                ['gtc', 'gfd', 'ioc', 'opg']
+
+        Returns:
+            (dict) The API response
+
+        Raises:
+            UsageError: If used incorrectly...
+        """
         return self._order('buy', asset, amt, **kwargs)
 
     def sell(self, asset, amt, **kwargs):
+        """Sell item
 
+        Args:
+            asset: (Currency | Stock | str) The asset to be sold
+            amt: (Decimal | float | int) The amt to sell
+            type: (str, optional) The order type
+                ['market', 'limit', 'stoploss', 'stoplimit']
+            price: (Decimal | float | int) The order price
+            stop_price: (Decimal | float | int) The stop price, required if using stoploss/stoplimit
+            time_in_force: (str, optional) When to cancel
+                ['gtc', 'gfd', 'ioc', 'opg']
+
+        Returns:
+            (dict) The API response
+
+        Raises:
+            UsageError: If used incorrectly...
+        """
         return self._order('sell', asset, amt, **kwargs)
 
     @property
     def account_info(self):
-
+        """Account info"""
         assert self.logged_in
 
         try:
@@ -281,11 +379,11 @@ class Robinhood:
             res.raise_for_status()
             return res.json()
         except:
-            raise Exception('Unable to access account')
+            raise APIError('Unable to access account')
 
     @property
     def holdings(self):
-
+        """Currency holdings"""
         assert self.logged_in
 
         try:
@@ -293,11 +391,11 @@ class Robinhood:
             res.raise_for_status()
             return res.json()['results']
         except:
-            raise Exception('Unable to access holdings')
+            raise APIError('Unable to access holdings')
 
     @property
     def positions(self):
-
+        """Share positions"""
         assert self.logged_in
 
         try:
@@ -305,21 +403,36 @@ class Robinhood:
             res.raise_for_status()
             return res.json()['results']
         except:
-            raise Exception('Unable to access holdings')
+            raise APIError('Unable to access holdings')
 
     @property
     def withdrawable_cash(self):
+        """Cash that can be withdrawn"""
         return Decimal(self.account_info['cash_available_for_withdrawal'])
 
     @property
     def buying_power(self):
+        """Buying power"""
         return Decimal(self.account_info['buying_power'])
 
     @property
     def unsettled_funds(self):
+        """Unsettled funds"""
         return Decimal(self.account_info['unsettled_funds'])
 
 class Currency:
+    """Currency asset object
+
+    Attributes:
+        session: (Session) Current session used by the API
+        json: (dict) Internal data json
+        name: (str) Currency name
+        code: (str) Currency symbol
+        tradable: (bool) If tradable
+        type: (str) asset type
+        pair_id: (str) Currency Pair id
+        asset_id: (str) The APIs id for this currency
+    """
 
     def __init__(self, session, asset_json):
 
@@ -336,29 +449,47 @@ class Currency:
 
     @property
     def current_quote(self):
+        """Current trade data"""
         try:
             res = self.session.get(ENDPOINTS['forex_market_quote'] + self.pair_id + '/')
             res.raise_for_status()
             return res.json()
         except:
-            raise Exception('Unable to access currency data')
+            raise APIError('Unable to access currency data')
 
     @property
     def price(self):
+        """Current price"""
         return Decimal(self.current_quote['mark_price'])
 
     @property
     def ask(self):
+        """Current ask price"""
         return Decimal(self.current_quote['ask_price'])
 
     @property
     def bid(self):
+        """Current bid price"""
         return Decimal(self.current_quote['bid_price'])
 
     def __repr__(self):
         return f'Currency<{self.name} [{self.code}]>'
 
 class Stock:
+    """Stock asset object
+
+    Attributes:
+        session: (Session) Current session used by the API
+        json: (dict) Internal data json
+        name: (str) stock name
+        simple_name: (str) simple stock name
+        code: (str) Currency symbol
+        symbol: (str) Currency symbol
+        tradable: (bool) If tradable
+        type: (str) asset type
+        instrument_url: (str) The instrument url for this stock
+        id: (str) The APIs id for this stock
+    """
 
     def __init__(self, session, instrument_json):
 
@@ -381,18 +512,21 @@ class Stock:
             res.raise_for_status()
             return res.json()
         except:
-            raise Exception('Unable to access stock data')
+            raise APIError('Unable to access stock data')
 
     @property
     def price(self):
+        """Current price"""
         return Decimal(self.current_quote['last_trade_price'])
 
     @property
     def ask(self):
+        """Current ask price"""
         return Decimal(self.current_quote['ask_price'])
 
     @property
     def bid(self):
+        """Current bid price"""
         return Decimal(self.current_quote['bid_price'])
 
     def __repr__(self):
