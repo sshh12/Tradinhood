@@ -1,11 +1,21 @@
+from dataclasses import dataclass
+from collections import defaultdict
+from decimal import Decimal
 from datetime import datetime
-import pandas as pd
 import requests
+
+@dataclass
+class OHLCV:
+    open: float
+    high: float
+    low: float
+    close: float
+    volume: float
 
 class Dataset:
 
-    def __init__(self, df):
-        self.df = df
+    def __init__(self, data):
+        self.data = data
 
     @classmethod
     def from_google(self, symbol, interval=60, period='20d', exchange='NASD'):
@@ -14,8 +24,7 @@ class Dataset:
         lines = res.split('\n')[7:]
 
         ref_date = None
-        records = []
-        indexes = []
+        new_data = defaultdict(dict)
 
         for line in lines:
 
@@ -32,18 +41,16 @@ class Dataset:
 
             timestamp = datetime.fromtimestamp(date).isoformat()
 
-            records.append([close, high, low, open, volume])
-            indexes.append((timestamp, symbol))
+            new_data[timestamp][symbol] = OHLCV(open, high, low, close, volume)
 
-        df_index = pd.MultiIndex.from_tuples(indexes, names=['date', 'symbol'])
-        df = pd.DataFrame.from_records(records, index=df_index, columns=['close', 'high', 'low', 'open', 'volume'])
-
-        return Dataset(df)
+        return Dataset(new_data)
 
     def __or__(self, other):
 
         assert isinstance(other, Dataset)
 
-        new_df = self.df.append(other.df)
+        for time in other.data:
+            for symbol in other.data[time]:
+                self.data[time][symbol] = other.data[time][symbol]
 
-        return Dataset(new_df)
+        return self
