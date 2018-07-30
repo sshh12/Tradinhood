@@ -33,6 +33,12 @@ class Dataset:
 
             date, close, high, low, open, volume = line.split(',')
 
+            open = float(open)
+            high = float(high)
+            low = float(low)
+            close = float(close)
+            volume = float(volume)
+
             if date.startswith('a'):
                 date = int(date[1:])
                 ref_date = date
@@ -44,6 +50,16 @@ class Dataset:
             new_data[timestamp][symbol] = OHLCV(open, high, low, close, volume)
 
         return Dataset(new_data)
+
+    @property
+    def dates(self):
+        return sorted(self.data.keys())
+
+    def get(self, timestamp, symbol, default=None):
+        try:
+            return self.data[timestamp][symbol]
+        except KeyError:
+            return default
 
     def __or__(self, other):
 
