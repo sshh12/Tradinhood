@@ -28,12 +28,12 @@ class Dataset:
 
         for line in lines:
 
-            if not line:
+            if not line or '=' in line:
                 continue
 
-            date, close, high, low, open, volume = line.split(',')
+            date, close, high, low, open_, volume = line.split(',')
 
-            open = float(open)
+            open_ = float(open_)
             high = float(high)
             low = float(low)
             close = float(close)
@@ -47,7 +47,7 @@ class Dataset:
 
             timestamp = datetime.fromtimestamp(date).isoformat()
 
-            new_data[timestamp][symbol] = OHLCV(open, high, low, close, volume)
+            new_data[timestamp][symbol] = OHLCV(open_, high, low, close, volume)
 
         return Dataset(new_data)
 

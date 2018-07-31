@@ -1,14 +1,14 @@
 from collections import defaultdict
 import matplotlib.pyplot as plt
 import pandas as pd
+import random
 import time
 
 class BaseTrader:
 
     ### Base Methods ###
 
-    def __init__(self, symbols, cash=10000):
-        self.cash = cash
+    def __init__(self, symbols):
         self.log = defaultdict(list)
         self.symbols = symbols
 
@@ -32,7 +32,7 @@ class BaseTrader:
             self.log['end_owned_' + symbol].append(self.quantity(symbol))
 
     def log_as_dataframe(self):
-        return pd.DataFrame.from_dict(self.log)
+        return pd.DataFrame.from_dict(self.log).set_index('datetime')
 
     def plot(self):
         self.log_as_dataframe().plot()
@@ -46,17 +46,31 @@ class BaseTrader:
     ### Trading Methods ###
 
     @property
+    def cash(self):
+        return 0
+
+    @property
     def portfolio_value(self):
-        pass
+        return 0
 
     def quantity(self, symbol):
-        pass
+        return 0
+
+    def set_quantity(self, symbol, amt):
+        current = self.quantity(symbol)
+        if amt > current:
+            self.buy(symbol, amt - current)
+        elif amt < current:
+            self.sell(symbol, current - amt)
 
     def price(self, symbol):
-        pass
+        return 0
 
     def buy(self, symbol, amt):
-        pass
+        return False
+
+    def sell(self, symbol, amt):
+        return False
 
     ### Algo Code ###
 
@@ -68,18 +82,23 @@ class BaseTrader:
 
 class Backtester(BaseTrader):
 
-    def start(self, dataset):
+    def start(self, dataset, cash=10000):
 
         self.dataset = dataset
         self.steps = self.dataset.dates
         self.idx = 0
         self.owned = defaultdict(lambda: 0)
+        self._cash = cash
 
         self.setup()
 
         for i, current_date in enumerate(self.steps):
             self.idx = i
             self._step(current_date)
+
+    @property
+    def cash(self):
+        return self._cash
 
     @property
     def portfolio_value(self):
@@ -95,7 +114,10 @@ class Backtester(BaseTrader):
         return self.owned[asset]
 
     def price(self, symbol):
-        return self.dataset.get(self.steps[self.idx], symbol).open
+
+        cur_quote = self.dataset.get(self.steps[self.idx], symbol)
+        
+        return random.uniform(cur_quote.open, cur_quote.close)
 
     def buy(self, symbol, amt):
 
@@ -103,8 +125,19 @@ class Backtester(BaseTrader):
         cost = price_per * amt
 
         if cost <= self.cash:
-            self.cash -= cost
+            self._cash -= cost
             self.owned[symbol] += amt
+            return True
+        else:
+            return False
+
+    def sell(self, symbol, amt):
+
+        price_per = self.price(symbol)
+
+        if amt <= self.quantity(symbol):
+            self._cash += price_per * amt
+            self.owned[symbol] -= amt
             return True
         else:
             return False
