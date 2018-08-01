@@ -3,6 +3,10 @@ from collections import defaultdict
 from decimal import Decimal
 from datetime import datetime
 import requests
+import pickle
+
+class DatasetException(Exception):
+    pass
 
 @dataclass
 class OHLCV:
@@ -49,7 +53,19 @@ class Dataset:
 
             new_data[timestamp][symbol] = OHLCV(open_, high, low, close, volume)
 
+        if len(new_data) == 0:
+            raise DatasetException('No data')
+
         return Dataset(new_data)
+
+    @classmethod
+    def from_file(self, filename):
+        try:
+            with open(filename, 'rb') as f:
+                new_data = pickle.load(f)
+            return Dataset(new_data)
+        except:
+            raise DatasetException('Could not load file ' + filename)
 
     @property
     def dates(self):
@@ -60,6 +76,15 @@ class Dataset:
             return self.data[timestamp][symbol]
         except KeyError:
             return default
+
+    def save(self, filename):
+        with open(filename, 'wb') as f:
+            pickle.dump(self.data, f, pickle.HIGHEST_PROTOCOL)
+
+    def __repr__(self):
+        dates = self.dates
+        start, end = dates[0], dates[-1]
+        return f'<Dataset [{start} -> {end}]>'
 
     def __or__(self, other):
 
