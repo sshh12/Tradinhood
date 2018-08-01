@@ -27,6 +27,7 @@ class BaseTrader:
 
         ## Post
         self.log['end_cash'].append(self.cash)
+        self.log['end_portfolio_value'].append(self.portfolio_value)
 
         for symbol in self.symbols:
             self.log['end_owned_' + symbol].append(self.quantity(symbol))
@@ -51,7 +52,10 @@ class BaseTrader:
 
     @property
     def portfolio_value(self):
-        return 0
+        value = self.cash
+        for symbol in self.symbols:
+            value += self.quantity(symbol) * self.price(symbol)
+        return value
 
     def quantity(self, symbol):
         return 0
@@ -72,6 +76,9 @@ class BaseTrader:
     def sell(self, symbol, amt):
         return False
 
+    def history(self, symbol, steps):
+        return []
+
     ### Algo Code ###
 
     def setup(self):
@@ -82,17 +89,21 @@ class BaseTrader:
 
 class Backtester(BaseTrader):
 
-    def start(self, dataset, cash=10000):
+    def start(self, dataset, cash=10000, start_idx=50):
 
         self.dataset = dataset
         self.steps = self.dataset.dates
-        self.idx = 0
+        self.idx = start_idx
         self.owned = defaultdict(lambda: 0)
         self._cash = cash
 
         self.setup()
 
         for i, current_date in enumerate(self.steps):
+
+            if i < start_idx:
+                continue
+
             self.idx = i
             self._step(current_date)
 
@@ -100,24 +111,21 @@ class Backtester(BaseTrader):
     def cash(self):
         return self._cash
 
-    @property
-    def portfolio_value(self):
-
-        value = self.cash
-
-        for symbol in self.symbols:
-            value += self.quantity(symbol) * self.price(symbol)
-
-        return value
-
     def quantity(self, asset):
         return self.owned[asset]
 
     def price(self, symbol):
-
         cur_quote = self.dataset.get(self.steps[self.idx], symbol)
-        
         return random.uniform(cur_quote.open, cur_quote.close)
+
+    def history(self, symbol, steps):
+
+        assert self.idx > steps
+
+        hist = []
+        for date in self.steps[(self.idx - steps):self.idx]:
+            hist.append(self.dataset.get(date, symbol))
+        return hist
 
     def buy(self, symbol, amt):
 
@@ -142,12 +150,6 @@ class Backtester(BaseTrader):
         else:
             return False
 
-# class Robinhood(BaseTrader):
-#
-#     def start(self):
-#
-#         self.setup()
-#
-#         while True:
-#             time.sleep(60)
-#             self.loop()
+class Robinhood(BaseTrader):
+
+    pass
