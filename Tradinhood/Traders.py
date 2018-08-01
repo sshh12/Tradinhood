@@ -33,10 +33,18 @@ class BaseTrader:
             self.log['end_owned_' + symbol].append(self.quantity(symbol))
 
     def log_as_dataframe(self):
-        return pd.DataFrame.from_dict(self.log).set_index('datetime')
+        df = pd.DataFrame.from_dict(self.log).set_index('datetime')
+        df.index = pd.to_datetime(df.index)
+        return df
 
     def plot(self):
-        self.log_as_dataframe().plot()
+        df = self.log_as_dataframe()
+        df[['end_portfolio_value', 'end_cash']].plot()
+        plt.show()
+
+    def plot_assets(self):
+        df = self.log_as_dataframe()
+        df[['end_owned_' + symbol for symbol in self.symbols]].plot()
         plt.show()
 
     ### Runner Methods ###
@@ -90,6 +98,8 @@ class BaseTrader:
 class Backtester(BaseTrader):
 
     def start(self, dataset, cash=10000, start_idx=50):
+
+        assert all(symbol in dataset.symbols for symbol in self.symbols)
 
         self.dataset = dataset
         self.steps = self.dataset.dates

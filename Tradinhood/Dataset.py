@@ -5,6 +5,13 @@ from datetime import datetime
 import requests
 import pickle
 
+RESOLUTIONS = {
+    '1m': 60,
+    '5m': 60*5,
+    '1h': 60*60,
+    '1d': 60*60*24
+}
+
 class DatasetException(Exception):
     pass
 
@@ -18,13 +25,18 @@ class OHLCV:
 
 class Dataset:
 
-    def __init__(self, data):
+    def __init__(self, data, resolution, symbols):
         self.data = data
+        self.resolution = resolution
+        self.symbols = symbols
 
     @classmethod
-    def from_google(self, symbol, interval=60, period='20d', exchange='NASD'):
+    def from_google(self, symbol, resolution='1d', period='20d', exchange='NASD'):
 
-        res = requests.get(f'https://www.google.com/finance/getprices?i={interval}&p={period}&f=d,o,h,l,c,v&df=cpct&q={symbol}&x={exchange}').text
+        interval = RESOLUTIONS[resolution]
+
+        url = f'https://www.google.com/finance/getprices?i={interval}&p={period}&f=d,o,h,l,c,v&df=cpct&q={symbol}&x={exchange}'
+        res = requests.get(url).text
         lines = res.split('\n')[7:]
 
         ref_date = None
@@ -56,14 +68,47 @@ class Dataset:
         if len(new_data) == 0:
             raise DatasetException('No data')
 
-        return Dataset(new_data)
+        return Dataset(new_data, resolution, [symbol])
+
+    @classmethod
+    def from_cryptocompare(self, symbol, resolution='1d', to_symbol='USD', limit=3000, last_unix_time=None):
+
+        endpoints = {
+            '1d': 'histoday',
+            '1h': 'histohour',
+            '1m': 'histominute'
+        }
+
+        url = f'https://min-api.cryptocompare.com/data/{endpoints[resolution]}?fsym={symbol}&tsym={to_symbol}&limit={limit}'
+        if last_unix_time:
+            url += f'&{last_unix_time}'
+        res = requests.get(url).json()
+
+        new_data = defaultdict(dict)
+
+        for data in res['Data']:
+
+            open_ = data['open']
+            high = data['high']
+            low = data['low']
+            close = data['close']
+            volume = data['volumefrom']
+            timestamp = datetime.fromtimestamp(data['time']).isoformat()
+
+            new_data[timestamp][symbol] = OHLCV(open_, high, low, close, volume)
+
+        if len(new_data) == 0:
+            raise DatasetException('No data')
+
+        return Dataset(new_data, resolution, [symbol])
+
 
     @classmethod
     def from_file(self, filename):
         try:
             with open(filename, 'rb') as f:
-                new_data = pickle.load(f)
-            return Dataset(new_data)
+                dataset = pickle.load(f)
+            return Dataset(dataset.data, dataset.resolution, dataset.symbols)
         except:
             raise DatasetException('Could not load file ' + filename)
 
@@ -79,19 +124,22 @@ class Dataset:
 
     def save(self, filename):
         with open(filename, 'wb') as f:
-            pickle.dump(self.data, f, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(self, f, pickle.HIGHEST_PROTOCOL)
 
     def __repr__(self):
         dates = self.dates
         start, end = dates[0], dates[-1]
-        return f'<Dataset [{start} -> {end}]>'
+        return f'<Dataset |{",".join(self.symbols)}| (@{self.resolution}) [{start} -> {end}]>'
 
     def __or__(self, other):
 
         assert isinstance(other, Dataset)
+        assert self.resolution == other.resolution
 
         for time in other.data:
             for symbol in other.data[time]:
                 self.data[time][symbol] = other.data[time][symbol]
+
+        self.symbols.extend(other.symbols)
 
         return self
