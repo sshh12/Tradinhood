@@ -73,6 +73,45 @@ dataset.dates # ['2015-11-04T18:00:00', '2015-11-05T18:00:00', ..., '2018-07-31T
 dataset.get('2015-11-04T18:00:00', 'BTC') # OHLCV(...)
 ```
 
+## Traders
+
+Backtester Usage:
+
+```python
+from Tradinhood import Dataset, Backtester
+
+dataset = Dataset.from_file('bitcoin-historical.pkl') # see dataset example
+
+class RandomAlgo(Backtester): # Your algo extends backtester
+
+    def setup(self):
+        pass
+
+    def loop(self, date):
+
+        print('My Value/Cash', self.portfolio_value, self.cash)
+
+        for symbol in self.symbols: # Display amt owned, price, and history
+          print(symbol, self.quantity(symbol), self.price(symbol))
+          print(self.history(symbol, 3))
+
+        stock = random.choice(self.symbols)
+        amt = random.randint(-5, 5)
+
+        if amt > 0:
+            self.buy(stock, amt)
+        if amt < 0:
+            self.sell(stock, -amt)
+
+algo = RandomAlgo(symbols=['BTC'])
+algo.start(dataset, cash=10000) # Run the algo
+
+algo.plot()
+algo.plot_assets()
+# or analyze yourself
+df = algo.log_as_dataframe()
+```
+
 ## Relevant
 
 Unoffical API Docs [sanko/Robinhood](https://github.com/sanko/Robinhood)
