@@ -43,8 +43,40 @@ rbh.buy(dogecoin, rbh.buying_power / dogecoin.price, type='market')
 print(rbh.quantity('DOGE', include_held=True))
 ```
 
+## Dataset
+
+Example Usage:
+
+```python
+from Tradinhood import Dataset
+
+# Gather some stock data
+dataset = Dataset.from_google('MU', period='1Y', resolution='1d')
+dataset |= Dataset.from_google('AMD', period='1Y', resolution='1d') # a |= b to merge from b to a
+dataset |= Dataset.from_google('INTC', period='1Y', resolution='1d')
+dataset |= Dataset.from_google('GOOG', period='1Y', resolution='1d')
+
+# or some crypto data
+dataset = Dataset.from_cryptocompare('BTC', resolution='1d', limit=1000)
+dataset |= Dataset.from_cryptocompare('ETH', resolution='1d', limit=1000)
+dataset |= Dataset.from_cryptocompare('LTC', resolution='1d', limit=1000)
+
+dataset.save('mydata.pkl')
+dataset = Dataset.from_file('mydata.pkl')
+
+print(dataset) # <Dataset |BTC,ETH,LTC| (@1d) [2015-11-04T18:00:00 -> 2018-07-31T19:00:00]>
+
+dataset.symbols # ['BTC', 'ETH', 'LTC']
+
+dataset.dates # ['2015-11-04T18:00:00', '2015-11-05T18:00:00', ..., '2018-07-31T19:00:00']
+
+dataset.get('2015-11-04T18:00:00', 'BTC') # OHLCV(...)
+```
+
 ## Relevant
 
-Helpful Unoffical API Docs [sanko/Robinhood](https://github.com/sanko/Robinhood)
+Unoffical API Docs [sanko/Robinhood](https://github.com/sanko/Robinhood)
 
 Another Robinhood API [Jamonek/Robinhood](https://github.com/Jamonek/Robinhood)
+
+Zipline [zipline-live/zipline](https://github.com/zipline-live/zipline)
