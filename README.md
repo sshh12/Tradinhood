@@ -71,6 +71,8 @@ dataset.symbols # ['BTC', 'ETH', 'LTC']
 dataset.dates # ['2015-11-04T18:00:00', '2015-11-05T18:00:00', ..., '2018-07-31T19:00:00']
 
 dataset.get('2015-11-04T18:00:00', 'BTC') # OHLCV(...)
+
+dataset.plot(show=True)
 ```
 
 ## Traders
@@ -78,6 +80,9 @@ dataset.get('2015-11-04T18:00:00', 'BTC') # OHLCV(...)
 Backtester Usage:
 
 ```python
+import matplotlib.pyplot as plt
+import random
+
 from Tradinhood import Dataset, Backtester
 
 dataset = Dataset.from_file('bitcoin-historical.pkl') # see dataset example
@@ -106,8 +111,10 @@ class RandomAlgo(Backtester): # Your algo extends backtester
 algo = RandomAlgo(symbols=['BTC'])
 algo.start(dataset, cash=10000) # Run the algo
 
-algo.plot()
-algo.plot_assets()
+f, (ax1, ax2) = plt.subplots(2, sharex=True)
+algo.plot(ax1)
+algo.plot_assets(ax2)
+plt.show()
 # or analyze yourself
 df = algo.log_as_dataframe()
 ```

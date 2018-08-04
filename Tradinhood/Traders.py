@@ -37,15 +37,17 @@ class BaseTrader:
         df.index = pd.to_datetime(df.index)
         return df
 
-    def plot(self):
+    def plot(self, ax=None, show=False):
         df = self.log_as_dataframe()
-        df[['end_portfolio_value', 'end_cash']].plot()
-        plt.show()
+        df[['end_portfolio_value', 'end_cash']].plot(ax=ax)
+        if show: plt.show()
 
-    def plot_assets(self):
+    def plot_assets(self, ax=None, symbols=None, show=False):
+        if not symbols:
+            symbols = self.symbols
         df = self.log_as_dataframe()
-        df[['end_owned_' + symbol for symbol in self.symbols]].plot()
-        plt.show()
+        df[['end_owned_' + symbol for symbol in self.symbols]].plot(ax=ax)
+        if show: plt.show()
 
     ### Runner Methods ###
 

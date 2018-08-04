@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from collections import defaultdict
 from decimal import Decimal
 from datetime import datetime
+import pandas as pd
 import requests
 import pickle
 
@@ -196,6 +197,61 @@ class Dataset:
             return self.data[timestamp][symbol]
         except KeyError:
             return default
+
+    def as_dataframe(self, symbols=None):
+        """Convert to dataframe
+
+        Args:
+            symbols: (list: str) Symbols to include,
+                will default to all in dataset
+
+        Returns:
+            (Dataframe) with data from dataset
+        """
+        if not symbols:
+            symbols = self.symbols
+
+        data = defaultdict(list)
+        data['datetime'] = self.dates
+
+        for symbol in symbols:
+
+            init_close = self.data[data['datetime'][0]][symbol].close # first close price
+            for timestamp in data['datetime']:
+                price_data = self.data[timestamp][symbol]
+                data['open_' + symbol].append(price_data.open)
+                data['high_' + symbol].append(price_data.high)
+                data['low_' + symbol].append(price_data.low)
+                data['close_' + symbol].append(price_data.close)
+                data['relclose_' + symbol].append(price_data.close / init_close)
+                data['volume_' + symbol].append(price_data.volume)
+
+        df = pd.DataFrame.from_dict(data).set_index('datetime')
+        df.index = pd.to_datetime(df.index)
+
+        return df
+
+    def plot(self, columns=['close'], symbols=None, ax=None, show=False):
+        """Plot
+
+        Args:
+            columns: (list: str) Columns to plot
+            symbols: (list: str) Symbols to include,
+                defaults to all in dataset
+            ax: (Axes) Where to plot
+            show: (bool) Whether to run plt.show()
+        """
+        if not symbols:
+            symbols = self.symbols
+
+        filter_ = [col + '_' + symbol for col in columns for symbol in symbols] # every column with every symbol
+
+        df = self.as_dataframe(symbols)[filter_].plot(ax=ax, title=str(self)) # dataset -> dataframe -> filter cols -> plot
+
+        if show: plt.show()
+
+    def __len__(self):
+        return len(self.data)
 
     def __repr__(self):
         """Provides overview of what dataset contains"""
