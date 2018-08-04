@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 from collections import defaultdict
-from decimal import Decimal
+import matplotlib.pyplot as plt
 from datetime import datetime
+from decimal import Decimal
 import pandas as pd
 import requests
 import pickle
@@ -217,6 +218,8 @@ class Dataset:
         for symbol in symbols:
 
             init_close = self.data[data['datetime'][0]][symbol].close # first close price
+            prev_close = init_close # previous price
+
             for timestamp in data['datetime']:
                 price_data = self.data[timestamp][symbol]
                 data['open_' + symbol].append(price_data.open)
@@ -224,7 +227,9 @@ class Dataset:
                 data['low_' + symbol].append(price_data.low)
                 data['close_' + symbol].append(price_data.close)
                 data['relclose_' + symbol].append(price_data.close / init_close)
+                data['relprevclose_' + symbol].append(price_data.close / prev_close)
                 data['volume_' + symbol].append(price_data.volume)
+                prev_close = price_data.close
 
         df = pd.DataFrame.from_dict(data).set_index('datetime')
         df.index = pd.to_datetime(df.index)
@@ -235,10 +240,11 @@ class Dataset:
         """Plot
 
         Args:
-            columns: (list: str) Columns to plot
+            columns: (list: str) Columns to plot,
+                [open, high, low, close, relclose, relprevclose, volume]
             symbols: (list: str) Symbols to include,
                 defaults to all in dataset
-            ax: (Axes) Where to plot
+            ax: (Axes) Where to plot, defaults to pandas default
             show: (bool) Whether to run plt.show()
         """
         if not symbols:
@@ -251,6 +257,7 @@ class Dataset:
         if show: plt.show()
 
     def __len__(self):
+        """The num of timesteps in the dataset"""
         return len(self.data)
 
     def __repr__(self):

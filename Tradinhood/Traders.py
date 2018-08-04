@@ -37,9 +37,9 @@ class BaseTrader:
         df.index = pd.to_datetime(df.index)
         return df
 
-    def plot(self, ax=None, show=False):
+    def plot(self, columns=['end_portfolio_value', 'end_cash'], ax=None, show=False):
         df = self.log_as_dataframe()
-        df[['end_portfolio_value', 'end_cash']].plot(ax=ax)
+        df[columns].plot(ax=ax)
         if show: plt.show()
 
     def plot_assets(self, ax=None, symbols=None, show=False):
