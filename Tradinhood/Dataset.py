@@ -110,6 +110,56 @@ class Dataset:
         return Dataset(new_data, resolution, [symbol])
 
     @classmethod
+    def from_iextrading_charts(self, symbols, period='1d', resolution='1d'):
+        """Fetch data from iextrading
+
+        Args:
+            symbol: (str or list: str) stock(s) to Fetch
+            resolution: (str) The required resolution
+                which must be a key of `RESOLUTIONS`
+            period: (str) The amount of time to fetch
+
+        Returns:
+            (Dataset) with prescribed params and data
+        """
+        if isinstance(symbols, str): # AMZN -> ['AMZN']
+            symbols = [symbols]
+
+        if period != '1d': # if request spans more than a day, force 1d resolution
+            assert resolution == '1d'
+            chartInterval = 1
+        else:
+            assert resolution in ['1m' , '5m', '1h'] # else if 1d, force min or hour resolution
+            chartInterval = RESOLUTIONS[resolution] // 60 # interval is based on mins between datapoint
+
+        symbol_str = ','.join(symbols)
+        url = f'https://api.iextrading.com/1.0/stock/market/batch?symbols={symbol_str}&types=chart&range={period}&chartInterval={chartInterval}'
+        res = requests.get(url).json()
+
+        new_data = defaultdict(dict)
+
+        for symbol in symbols:
+
+            for data in res[symbol]['chart']:
+
+                open_ = data['open']
+                high = data['high']
+                low = data['low']
+                close = data['close']
+                volume = data['volume']
+
+                if resolution in ['1m' , '5m', '1h']:
+                    date = datetime.strptime(data['date'] + data['minute'], '%Y%m%d%H:%M')
+                else:
+                    date = datetime.strptime(data['date'], '%Y-%m-%d')
+
+                timestamp = date.isoformat()
+
+                new_data[timestamp][symbol] = OHLCV(open_, high, low, close, volume)
+
+        return Dataset(new_data, resolution, symbols)
+
+    @classmethod
     def from_cryptocompare(self, symbol, resolution='1d', to_symbol='USD', limit=3000, last_unix_time=None):
         """Fetch data from cryptocompare
 
@@ -276,5 +326,6 @@ class Dataset:
                 self.data[time][symbol] = other.data[time][symbol]
 
         self.symbols.extend(other.symbols)
+        self.symbols = list(set(self.symbols)) # ensure unique
 
         return self

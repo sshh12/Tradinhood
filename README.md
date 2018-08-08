@@ -55,6 +55,8 @@ dataset = Dataset.from_google('MU', period='1Y', resolution='1d')
 dataset |= Dataset.from_google('AMD', period='1Y', resolution='1d') # a |= b to merge from b to a
 dataset |= Dataset.from_google('INTC', period='1Y', resolution='1d')
 dataset |= Dataset.from_google('GOOG', period='1Y', resolution='1d')
+# or use iextrading
+dataset2 = Dataset.from_iextrading_charts(['GOOG', 'AAPL'], period='1d', resolution='1m')
 
 # or some crypto data
 dataset = Dataset.from_cryptocompare('BTC', resolution='1d', limit=1000)
