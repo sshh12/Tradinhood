@@ -56,8 +56,6 @@ class Robinhood:
     nummus_id = None
     account_url = None
     logged_in = False
-    _currencies = {}
-    _stocks = {}
 
     def __init__(self):
         """Creates session used in client"""
@@ -72,7 +70,6 @@ class Robinhood:
         for curr_json in asset_currs:
 
             currency = Currency(self.session, curr_json)
-            self._currencies[currency.code] = currency
 
     def _load_auth(self, acc_num=None, nummus_id=None):
         """Inits internal account information from Robinhood
@@ -166,11 +163,11 @@ class Robinhood:
         Raises:
             APIError: If symbol cannot be associated with a stock or currency
         """
-        if symbol in self._currencies: # check caches first
-            return self._currencies[symbol]
+        if symbol in Currency.cache: # check caches first
+            return Currency.cache[symbol]
 
-        if symbol in self._stocks: # check caches first
-            return self._stocks[symbol]
+        if symbol in Stock.cache: # check caches first
+            return Stock.cache[symbol]
 
         try:
 
@@ -293,7 +290,7 @@ class Robinhood:
             if return_json:
                 return res_json
             else:
-                return Order(self.session, res_json, 'cryptocurrency', symbol=asset.symbol)
+                return Order(self.session, res_json, 'cryptocurrency', symbol=asset.symbol, asset=asset)
 
         elif isinstance(asset, Stock):
 
@@ -337,7 +334,7 @@ class Robinhood:
             if return_json:
                 return res_json
             else:
-                return Order(self.session, res_json, 'stock', symbol=asset.symbol)
+                return Order(self.session, res_json, 'stock', symbol=asset.symbol, asset=asset)
 
         else:
             raise UsageError('Invalid asset')
@@ -387,7 +384,7 @@ class Robinhood:
         return self._order('sell', asset, amt, **kwargs)
 
     @property
-    def orders(self, return_json=False):
+    def orders(self, sort_by_time=True, return_json=False):
         """Get order history"""
         assert self.logged_in
 
@@ -405,6 +402,9 @@ class Robinhood:
 
             orders = [ Order(self.session, json_data, 'stock') for json_data in json_stocks['results'] ]
             orders += [ Order(self.session, json_data, 'cryptocurrency') for json_data in json_crypto['results'] ]
+
+            if sort_by_time:
+                orders.sort(key=lambda o: o.created_at)
 
             return orders
 
@@ -477,6 +477,8 @@ class Currency:
         asset_id: (str) the APIs id for this currency
     """
 
+    cache = {}
+
     def __init__(self, session, asset_json):
 
         self.session = session
@@ -489,6 +491,8 @@ class Currency:
         self.type = self.json['asset_currency']['type']
         self.pair_id = self.json['id']
         self.asset_id = self.json['asset_currency']['id']
+
+        Currency.cache[self.code] = self
 
     @property
     def current_quote(self):
@@ -515,6 +519,12 @@ class Currency:
         """Current bid price"""
         return Decimal(self.current_quote['bid_price'])
 
+    def __hash__(self):
+        return hash(self.type + self.code)
+
+    def __eq__(self, other):
+        return isinstance(other, Currency) and other.code == self.code
+
     def __repr__(self):
         return f'<Currency ({self.name}) [{self.code}]>'
 
@@ -534,6 +544,8 @@ class Stock:
         id: (str) the APIs id for this stock
     """
 
+    cache = {}
+
     def __init__(self, session, instrument_json):
 
         self.session = session
@@ -547,6 +559,8 @@ class Stock:
         self.tradable = (self.json['tradeable'] == True)
         self.type = self.json['type']
         self.instrument_url = ENDPOINTS['instruments'] + self.id + '/'
+
+        Stock.cache[self.symbol] = self
 
     @property
     def current_quote(self):
@@ -572,6 +586,12 @@ class Stock:
         """Current bid price"""
         return Decimal(self.current_quote['bid_price'])
 
+    def __hash__(self):
+        return hash(self.type + self.symbol)
+
+    def __eq__(self, other):
+        return isinstance(other, Stock) and other.symbol == self.symbol
+
     def __repr__(self):
         return f'<Stock ({self.simple_name}) [{self.symbol}]>'
 
@@ -591,9 +611,10 @@ class Order:
             this can be None
         stop_price: (Deciaml) the stop price, None if not a stop order
         symbol: (str) the symbol traded in the order, defaults None
+        asset: (Stock or Currency) the asset traded in the order, defaults None
     """
 
-    def __init__(self, session, order_json, asset_type, symbol=None):
+    def __init__(self, session, order_json, asset_type, symbol=None, asset=None):
 
         self.session = session
         self.json = order_json
@@ -601,18 +622,35 @@ class Order:
         self.id = self.json['id']
         self.side = self.json['side']
         self.time_in_force = self.json['time_in_force']
+        self.created_at = self.json['created_at']
 
         self.quantity = Decimal(self.json['quantity'])
         self.order_type = self.json['type']
         self.asset_type = asset_type
         self.symbol = symbol
+        self.asset = asset
 
         if self.asset_type == 'cryptocurrency':
+
             self.pair_id = self.json['currency_pair_id']
             self.url = ENDPOINTS['nummus_orders'] + self.id
+
+            if not self.symbol: # try to pair with cache
+                for symbol, asset in Currency.cache.items():
+                    if asset.pair_id == self.pair_id:
+                        self.symbol = symbol
+                        self.asset = asset
+
         elif self.asset_type == 'stock':
+
             self.instrument_url = self.json['instrument']
             self.url = ENDPOINTS['orders'] + self.id
+
+            if not self.symbol: # try to pair with cache
+                for symbol, asset in Stock.cache.items():
+                    if asset.instrument_url == self.instrument_url:
+                        self.symbol = symbol
+                        self.asset = asset
 
         if 'cancel' in self.json:
             self.cancel_url = self.json['cancel']
