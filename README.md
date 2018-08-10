@@ -41,6 +41,11 @@ rbh.buy(dogecoin, rbh.buying_power / dogecoin.price, type='market')
 
 # Savor your abundant wealth
 print(rbh.quantity('DOGE', include_held=True))
+
+# jkjk cancel everything
+for order in rbh.orders:
+    if order.state == 'confirmed' and order.asset_type == 'cryptocurrency':
+        order.cancel()
 ```
 
 ## Dataset
