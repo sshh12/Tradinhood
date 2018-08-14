@@ -127,6 +127,30 @@ plt.show()
 df = algo.log_as_dataframe()
 ```
 
+RobinhoodLive Usage:
+
+```python
+from Tradinhood import RobinhoodLive
+
+import matplotlib.pyplot as plt
+
+rbh = Robinhood()
+rbh.login(username="l33tTrader", password="pa5s0rd") # see robinhood usage
+
+class SellMyDOGE(RobinhoodLive):
+
+    def setup(self):
+        pass
+
+    def loop(self, date):
+        # TODO sell doge
+        pass
+
+algo = SellMyDOGE(symbols=['DOGE'])
+algo.start(rbh, resolution='5m')
+# ... you can also use the same methods as the Backtester
+```
+
 ## Relevant
 
 Unoffical API Docs [sanko/Robinhood](https://github.com/sanko/Robinhood)

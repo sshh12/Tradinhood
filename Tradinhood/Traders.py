@@ -1,14 +1,20 @@
 from collections import defaultdict
 import matplotlib.pyplot as plt
+from datetime import datetime, timedelta
 import pandas as pd
 import random
 import time
+
+from .Dataset import RESOLUTIONS
 
 class BaseTrader:
 
     ### Base Methods ###
 
     def __init__(self, symbols):
+
+        assert len(symbols) > 0
+
         self.log = defaultdict(list)
         self.symbols = symbols
 
@@ -33,8 +39,15 @@ class BaseTrader:
             self.log['end_owned_' + symbol].append(self.quantity(symbol))
 
     def log_as_dataframe(self):
+
         df = pd.DataFrame.from_dict(self.log).set_index('datetime')
         df.index = pd.to_datetime(df.index)
+
+        numeric_cols = ['start_cash', 'end_cash', 'start_portfolio_value', 'end_portfolio_value']
+        for symbol in self.symbols:
+            numeric_cols.append('start_owned_' + symbol)
+        df[numeric_cols] = df[numeric_cols].apply(pd.to_numeric)
+
         return df
 
     def plot(self, columns=['end_portfolio_value', 'end_cash'], ax=None, show=False):
@@ -123,8 +136,8 @@ class Backtester(BaseTrader):
     def cash(self):
         return self._cash
 
-    def quantity(self, asset):
-        return self.owned[asset]
+    def quantity(self, symbol):
+        return self.owned[symbol]
 
     def price(self, symbol):
         cur_quote = self.dataset.get(self.steps[self.idx], symbol)
@@ -164,4 +177,47 @@ class Backtester(BaseTrader):
 
 class Robinhood(BaseTrader):
 
-    pass
+    def start(self, robinhood, resolution='1d', until=None):
+
+        assert resolution in RESOLUTIONS
+        assert robinhood.logged_in
+
+        self.rbh = robinhood
+        self.resolution = resolution
+        self.stop_date = until
+
+        self.setup()
+
+        while True:
+
+            date_start = datetime.now()
+            timestamp = date_start.isoformat()
+
+            if self.stop_date and timestamp > self.stop_date:
+                break
+
+            self._step(timestamp)
+
+            date_end = date_start + timedelta(seconds=RESOLUTIONS[self.resolution])
+            wait_time = (date_end - datetime.now()).total_seconds()
+
+            time.sleep(wait_time)
+
+    @property
+    def cash(self):
+        return self.rbh.buying_power
+
+    def quantity(self, symbol):
+        return self.rbh.quantity(self.rbh[symbol])
+
+    def price(self, symbol):
+        return self.rbh[symbol].price
+
+    def history(self, symbol, steps):
+        return []
+
+    def buy(self, symbol, amt):
+        return False
+
+    def sell(self, symbol, amt):
+        return True
