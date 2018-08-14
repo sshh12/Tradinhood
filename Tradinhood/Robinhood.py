@@ -1,5 +1,6 @@
 from decimal import getcontext, Decimal
 import requests
+import time
 import uuid
 
 getcontext().prec = 18 # The API seems to use 18 digits, so I copied that
@@ -178,7 +179,6 @@ class Robinhood:
             results = res.json()['results']
 
             stock = Stock(self.session, results[0])
-            self._stocks[stock.symbol] = stock
             return stock
 
         except:
@@ -410,6 +410,26 @@ class Robinhood:
 
         except:
             raise APIError('Unable to access orders')
+
+    def wait_for_orders(self, orders, delay=5, timeout=120):
+        """Sleep until order is complete
+
+        Args:
+            orders: (list: Order) the orders to wait for
+            delay: (int) time in seconds between checks
+            timeout: (int) time in seconds to give up waiting
+
+        Returns:
+            (bool) if the orders where complete
+        """
+        order_complete = lambda order: order.state in ['filled', 'cancelled']
+        checks = timeout // delay
+
+        while not all(map(order_complete, orders)) and checks > 0:
+            time.sleep(delay)
+            checks -= 1
+
+        return all(map(order_complete, orders))
 
     @property
     def account_info(self):
