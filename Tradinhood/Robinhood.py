@@ -1,4 +1,5 @@
 from decimal import getcontext, Decimal
+from datetime import datetime
 import requests
 import time
 import uuid
@@ -579,11 +580,23 @@ class Stock:
         self.tradable = (self.json['tradeable'] == True)
         self.type = self.json['type']
         self.instrument_url = ENDPOINTS['instruments'] + self.id + '/'
+        self.market_url = self.json['market']
 
         Stock.cache[self.symbol] = self
 
     @property
+    def market_open(self):
+        """If the market for this stock is open"""
+        try:
+            res = self.session.get(self.market_url + 'hours/' + datetime.today().isoformat()[:10] + '/')
+            res.raise_for_status()
+            return res.json()['is_open']
+        except:
+            raise APIError('Unable to access market data')
+
+    @property
     def current_quote(self):
+        """Stock quote info"""
         try:
             res = self.session.get(ENDPOINTS['quotes'] + self.symbol + '/')
             res.raise_for_status()
