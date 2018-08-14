@@ -93,10 +93,10 @@ class BaseTrader:
     def price(self, symbol):
         return 0
 
-    def buy(self, symbol, amt):
+    def buy(self, symbol, amt, **kwargs):
         return False
 
-    def sell(self, symbol, amt):
+    def sell(self, symbol, amt, **kwargs):
         return False
 
     def history(self, symbol, steps):
@@ -152,7 +152,7 @@ class Backtester(BaseTrader):
             hist.append(self.dataset.get(date, symbol))
         return hist
 
-    def buy(self, symbol, amt):
+    def buy(self, symbol, amt, **kwargs):
 
         price_per = self.price(symbol)
         cost = price_per * amt
@@ -164,7 +164,7 @@ class Backtester(BaseTrader):
         else:
             return False
 
-    def sell(self, symbol, amt):
+    def sell(self, symbol, amt, **kwargs):
 
         price_per = self.price(symbol)
 
@@ -201,7 +201,10 @@ class Robinhood(BaseTrader):
             date_end = date_start + timedelta(seconds=RESOLUTIONS[self.resolution])
             wait_time = (date_end - datetime.now()).total_seconds()
 
-            time.sleep(wait_time)
+            if wait_time <= 0:
+                print('Your algo\'s loop took longer than a timestep!')
+            else:
+                time.sleep(wait_time)
 
     @property
     def cash(self):
@@ -216,8 +219,14 @@ class Robinhood(BaseTrader):
     def history(self, symbol, steps):
         return []
 
-    def buy(self, symbol, amt):
-        return False
+    def buy(self, symbol, amt, wait=True, **kwargs):
+        order = self.rbh.buy(self.rbh[symbol], amt, **kwargs)
+        if wait:
+            self.rbh.wait_for_orders([order], delay=5, timeout=RESOLUTIONS[self.resolution], force=True)
+        return order
 
-    def sell(self, symbol, amt):
-        return True
+    def sell(self, symbol, amt, wait=True, **kwargs):
+        order = self.rbh.sell(self.rbh[symbol], amt, **kwargs)
+        if wait:
+            self.rbh.wait_for_orders([order], delay=5, timeout=RESOLUTIONS[self.resolution], force=True)
+        return order

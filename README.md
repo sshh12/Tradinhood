@@ -105,8 +105,8 @@ class RandomAlgo(Backtester): # Your algo extends backtester
         print('My Value/Cash', self.portfolio_value, self.cash)
 
         for symbol in self.symbols: # Display amt owned, price, and history
-          print(symbol, self.quantity(symbol), self.price(symbol))
-          print(self.history(symbol, 3))
+            print(symbol, self.quantity(symbol), self.price(symbol))
+            print(self.history(symbol, 3))
 
         stock = random.choice(self.symbols)
         amt = random.randint(-5, 5)
@@ -132,8 +132,6 @@ RobinhoodLive Usage:
 ```python
 from Tradinhood import RobinhoodLive
 
-import matplotlib.pyplot as plt
-
 rbh = Robinhood()
 rbh.login(username="l33tTrader", password="pa5s0rd") # see robinhood usage
 
@@ -143,8 +141,10 @@ class SellMyDOGE(RobinhoodLive):
         pass
 
     def loop(self, date):
-        # TODO sell doge
-        pass
+        amt_owned = self.quantity('DOGE')
+        amt_to_sell = random.randint(15, amt_owned)
+        print(date, 'Selling', amt_to_sell, 'of', amt_owned)
+        self.sell('DOGE', amt_to_sell, type='market')
 
 algo = SellMyDOGE(symbols=['DOGE'])
 algo.start(rbh, resolution='5m')

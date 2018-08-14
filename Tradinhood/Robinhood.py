@@ -412,13 +412,14 @@ class Robinhood:
         except:
             raise APIError('Unable to access orders')
 
-    def wait_for_orders(self, orders, delay=5, timeout=120):
+    def wait_for_orders(self, orders, delay=5, timeout=120, force=False):
         """Sleep until order is complete
 
         Args:
             orders: (list: Order) the orders to wait for
             delay: (int) time in seconds between checks
             timeout: (int) time in seconds to give up waiting
+            force: (bool) cancel all orders which were not completed in time
 
         Returns:
             (bool) if the orders where complete
@@ -429,6 +430,11 @@ class Robinhood:
         while not all(map(order_complete, orders)) and checks > 0:
             time.sleep(delay)
             checks -= 1
+
+        if force:
+            for order in orders:
+                if order.state == 'confirmed': # cancel orders not completed
+                    order.cancel()
 
         return all(map(order_complete, orders))
 
@@ -514,6 +520,11 @@ class Currency:
         self.asset_id = self.json['asset_currency']['id']
 
         Currency.cache[self.code] = self
+
+    @property
+    def market_open(self):
+        """Is this crypto's market open"""
+        return True # I think its always open...
 
     @property
     def current_quote(self):
