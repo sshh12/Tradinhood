@@ -47,6 +47,8 @@ for order in rbh.orders:
     if order.state == 'confirmed' and order.asset_type == 'cryptocurrency':
         order.cancel()
         rbh.wait_for_orders([order]) # wait for cancel
+
+rbh.get_assets() # get everything you own as a dict(asset:amt)
 ```
 
 ## Dataset

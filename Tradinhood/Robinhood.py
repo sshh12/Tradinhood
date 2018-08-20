@@ -200,50 +200,19 @@ class Robinhood:
         """
         assert self.logged_in
 
-        if isinstance(asset, str):
+        if isinstance(asset, str): # convert str to Stock or Currency
             asset = self.__getitem__(asset)
 
         if isinstance(asset, Currency):
-
-            currs = self.holdings
-
-            for curr in currs:
-
-                if curr['currency']['code'] == asset.code:
-
-                    amt = Decimal(curr['quantity_available'])
-
-                    if include_held:
-                        amt += Decimal(curr['quantity_held_for_buy'])
-                        amt += Decimal(curr['quantity_held_for_sell'])
-
-                    return amt
-
-            return Decimal('0.00')
+            assets = self.get_assets(include_positions=False, include_holdings=True, include_held=include_held)
 
         elif isinstance(asset, Stock):
-
-            stocks = self.positions
-
-            for stock in stocks:
-
-                if asset.id in stock['instrument']:
-
-                    amt = Decimal(stock['quantity'])
-
-                    if include_held:
-                        amt += Decimal(stock['shares_held_for_buys'])
-                        amt += Decimal(stock['shares_held_for_sells'])
-                        amt += Decimal(stock['shares_held_for_options_collateral'])
-                        amt += Decimal(stock['shares_held_for_options_events'])
-                        amt += Decimal(stock['shares_held_for_stock_grants'])
-
-                    return amt
-
-            return Decimal('0.00')
+            assets = self.get_assets(include_positions=True, include_holdings=False, include_held=include_held)
 
         else:
-            raise UsageError('Invalid asset')
+            raise UsageError('Invalid asset type')
+
+        return assets.get(asset, Decimal('0.00')) # default to zero if not in positions or holdings
 
     def _order(self, order_side, asset, amt, type='market', price=None, stop_price=None, time_in_force='gtc', return_json=False):
         """Internal order method
@@ -438,6 +407,61 @@ class Robinhood:
 
         return all(map(order_complete, orders))
 
+    def get_assets(self, include_positions=True, include_holdings=True, include_held=False):
+        """Get all owned assets
+
+        Args:
+            include_positions: (bool) whether to include stocks
+            include_holdings: (bool) whether to include currencies
+            include_held: (bool) whether to include held assets
+
+        Returns:
+            (dict) Stock or Currency objects paired with quantities, note:
+                some quantities may be zero
+        """
+        assert self.logged_in
+
+        my_assets = {}
+
+        if include_positions:
+
+            stocks = self.positions
+
+            for stock_json in stocks:
+
+                stock = Stock.from_url(self.session, stock_json['instrument'])
+                amt = Decimal(stock_json['quantity'])
+
+                if include_held:
+                    amt += Decimal(stock_json['shares_held_for_buys'])
+                    amt += Decimal(stock_json['shares_held_for_sells'])
+                    amt += Decimal(stock_json['shares_held_for_options_collateral'])
+                    amt += Decimal(stock_json['shares_held_for_options_events'])
+                    amt += Decimal(stock_json['shares_held_for_stock_grants'])
+
+                my_assets[stock] = amt
+
+        if include_holdings:
+
+            currs = self.holdings
+
+            for curr_json in currs:
+
+                code = curr_json['currency']['code']
+
+                if code in Currency.cache: # all currencies already cached
+
+                    curr = Currency.cache[code]
+                    amt = Decimal(curr_json['quantity_available'])
+
+                    if include_held:
+                        amt += Decimal(curr_json['quantity_held_for_buy'])
+                        amt += Decimal(curr_json['quantity_held_for_sell'])
+
+                    my_assets[curr] = amt
+
+        return my_assets
+
     @property
     def account_info(self):
         """Account info"""
@@ -594,6 +618,15 @@ class Stock:
         self.market_url = self.json['market']
 
         Stock.cache[self.symbol] = self
+
+    @classmethod
+    def from_url(self, session, instrument_url):
+        """Create a stock from its instrument url"""
+        for symbol, stock in Stock.cache.items(): # try cache
+            if stock.id in instrument_url:
+                return stock
+
+        return Stock(session, session.get(instrument_url).json())
 
     @property
     def market_open(self):
