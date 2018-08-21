@@ -39,6 +39,7 @@ class BaseTrader:
 
         for symbol in self.symbols:
             self.log['start_owned_' + symbol].append(self.quantity(symbol))
+            self.log['start_price_' + symbol].append(self.price(symbol))
 
         ## Execute
         self.loop(current_date, *args, **kwargs)
@@ -49,6 +50,7 @@ class BaseTrader:
 
         for symbol in self.symbols:
             self.log['end_owned_' + symbol].append(self.quantity(symbol))
+            self.log['end_price_' + symbol].append(self.price(symbol))
 
     def log_as_dataframe(self):
         """Convert log to a pandas DataFrame
