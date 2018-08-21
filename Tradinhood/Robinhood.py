@@ -82,19 +82,24 @@ class Robinhood:
         """
         assert self.logged_in
 
-        if not acc_num:
-            res_json = self.session.get(ENDPOINTS['accounts']).json()['results']
-            self.acc_num = res_json[0]['account_number']
-        else:
-            self.acc_num = acc_num
+        try:
 
-        self.account_url = ENDPOINTS['accounts'] + self.acc_num + '/'
+            if not acc_num:
+                res_json = self.session.get(ENDPOINTS['accounts']).json()['results']
+                self.acc_num = res_json[0]['account_number']
+            else:
+                self.acc_num = acc_num
 
-        if not nummus_id:
-            res_nummus_json = self.session.get(ENDPOINTS['nummus_accounts']).json()['results']
-            self.nummus_id = res_nummus_json[0]['id']
-        else:
-            self.nummus_id = nummus_id
+            self.account_url = ENDPOINTS['accounts'] + self.acc_num + '/'
+
+            if not nummus_id:
+                res_nummus_json = self.session.get(ENDPOINTS['nummus_accounts']).json()['results']
+                self.nummus_id = res_nummus_json[0]['id']
+            else:
+                self.nummus_id = nummus_id
+
+        except KeyError:
+            raise APIError('Unable to load secure content (retry login)')
 
     def login(self, token='', username='', password='', acc_num=None, nummus_id=None):
         """Login/Authenticate
