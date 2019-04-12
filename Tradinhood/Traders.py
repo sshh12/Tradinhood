@@ -5,7 +5,7 @@ import pandas as pd
 import random
 import time
 
-from .Dataset import RESOLUTIONS
+from .dataset import RESOLUTIONS
 
 class BaseTrader:
     """The abstract trader

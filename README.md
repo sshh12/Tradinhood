@@ -7,7 +7,7 @@ Programmatically trading stocks and crypto with Robinhood.
 Example Usage:
 
 ```python
-from Tradinhood import Robinhood
+from tradinhood import Robinhood
 from decimal import Decimal
 
 rbh = Robinhood()
