@@ -90,18 +90,18 @@ Args:
 Returns:
     (Dataset) from the values in the file
 ```
-`Dataset.save(self, filename)`
+`Dataset(...).save(self, filename)`
 ```
 Save dataset
 
 Args:
     filename: (str) where to save the dataset
 ```
-`Dataset.dates(self)`
+`Dataset(...).dates`
 ```
 The dates (in order) that this dataset contains as list: str
 ```
-`Dataset.get(self, timestamp, symbol, default=None)`
+`Dataset(...).get(self, timestamp, symbol, default=None)`
 ```
 Get datapoint
 
@@ -110,7 +110,7 @@ Args:
     symbol: (str) the symbol of interest
     default: A value if not found
 ```
-`Dataset.as_dataframe(self, symbols=None)`
+`Dataset(...).as_dataframe(self, symbols=None)`
 ```
 Convert to dataframe
 
@@ -121,7 +121,7 @@ Args:
 Returns:
     (Dataframe) with data from dataset
 ```
-`Dataset.plot(self, columns=['close'], symbols=None, ax=None, show=False)`
+`Dataset(...).plot(self, columns=['close'], symbols=None, ax=None, show=False)`
 ```
 Plot
 
@@ -133,15 +133,15 @@ Args:
     ax: (Axes) Where to plot, defaults to pandas default
     show: (bool) Whether to run plt.show()
 ```
-`Dataset.__len__(self)`
+`Dataset(...).__len__`
 ```
 The num of timesteps in the dataset
 ```
-`Dataset.__repr__(self)`
+`Dataset(...).__repr__`
 ```
 Provides overview of what dataset contains
 ```
-`Dataset.__ior__(self, other)`
+`Dataset(...).__ior__(self, other)`
 ```
 Use |= to combine datasets
 ```
@@ -173,15 +173,15 @@ Attributes:
     account_url: (str) The account url
     logged_in: (bool) If successfully authenticated
 ```
-`Robinhood.__init__(self)`
+`Robinhood.__init__`
 ```
 Creates session used in client
 ```
-`Robinhood._load(self)`
+`Robinhood(...)._load`
 ```
 Inits basic internal information
 ```
-`Robinhood._load_auth(self, acc_num=None, nummus_id=None)`
+`Robinhood(...)._load_auth(self, acc_num=None, nummus_id=None)`
 ```
 Inits internal account information from Robinhood
 
@@ -192,7 +192,7 @@ Args:
 Raises:
     APIError: If logged in but no account found
 ```
-`Robinhood.login(self, token='', username='', password='', acc_num=None, nummus_id=None)`
+`Robinhood(...).login(self, token='', username='', password='', mfa_code='', acc_num=None, nummus_id=None)`
 ```
 Login/Authenticate
 
@@ -201,6 +201,7 @@ Args:
         since API token already known
     username: (str) required login information if token not specified
     password: (str) required login information if token not specified
+    mfa_code: (str) 2 Factor code, required if enabled on the account
     acc_num: (str, optional) manual specify the account number
     nummus_id: (str, optional) manual specify the nummus id
 
@@ -210,7 +211,7 @@ Returns:
 Raises:
     APIError: If login fails
 ```
-`Robinhood.__getitem__(self, symbol)`
+`Robinhood(...).__getitem__(self, symbol)`
 ```
 Access items using robinhood[symbol]
 
@@ -223,7 +224,7 @@ Returns:
 Raises:
     APIError: If symbol cannot be associated with a stock or currency
 ```
-`Robinhood.quantity(self, asset, include_held=False)`
+`Robinhood(...).quantity(self, asset, include_held=False)`
 ```
 Get owned quantity of asset
 
@@ -237,13 +238,13 @@ Returns:
 Raises:
     UsageError: If the asset is not valid
 ```
-`Robinhood._order(self, order_side, asset, amt, type='market', price=None, stop_price=None, time_in_force='gtc', return_json=False)`
+`Robinhood(...)._order(self, order_side, asset, amt, type='market', price=None, stop_price=None, time_in_force='gtc', return_json=False)`
 ```
 Internal order method
 
        See .buy(...) and .sell(...)
 ```
-`Robinhood.buy(self, asset, amt, **kwargs)`
+`Robinhood(...).buy(self, asset, amt, **kwargs)`
 ```
 Buy item
 
@@ -264,7 +265,7 @@ Returns:
 Raises:
     UsageError: If used incorrectly...
 ```
-`Robinhood.sell(self, asset, amt, **kwargs)`
+`Robinhood(...).sell(self, asset, amt, **kwargs)`
 ```
 Sell item
 
@@ -285,11 +286,11 @@ Returns:
 Raises:
     UsageError: If used incorrectly...
 ```
-`Robinhood.orders(self, sort_by_time=True, return_json=False)`
+`Robinhood(...).orders(self, sort_by_time=True, return_json=False)`
 ```
 Get order history
 ```
-`Robinhood.wait_for_orders(self, orders, delay=5, timeout=120, force=False)`
+`Robinhood(...).wait_for_orders(self, orders, delay=5, timeout=120, force=False)`
 ```
 Sleep until order is complete
 
@@ -302,7 +303,7 @@ Args:
 Returns:
     (bool) if the orders where complete
 ```
-`Robinhood.get_assets(self, include_positions=True, include_holdings=True, include_held=False)`
+`Robinhood(...).get_assets(self, include_positions=True, include_holdings=True, include_held=False)`
 ```
 Get all owned assets
 
@@ -315,27 +316,27 @@ Returns:
     (dict) Stock or Currency objects paired with quantities, note:
         some quantities may be zero
 ```
-`Robinhood.account_info(self)`
+`Robinhood(...).account_info`
 ```
 Account info
 ```
-`Robinhood.holdings(self)`
+`Robinhood(...).holdings`
 ```
 Currency holdings
 ```
-`Robinhood.positions(self)`
+`Robinhood(...).positions`
 ```
 Share positions
 ```
-`Robinhood.withdrawable_cash(self)`
+`Robinhood(...).withdrawable_cash`
 ```
 Cash that can be withdrawn
 ```
-`Robinhood.buying_power(self)`
+`Robinhood(...).buying_power`
 ```
 Buying power
 ```
-`Robinhood.unsettled_funds(self)`
+`Robinhood(...).unsettled_funds`
 ```
 Unsettled funds
 ```
@@ -354,23 +355,23 @@ Attributes:
     pair_id: (str) currency Pair id
     asset_id: (str) the APIs id for this currency
 ```
-`Currency.market_open(self)`
+`Currency(...).market_open`
 ```
 Is this crypto's market open
 ```
-`Currency.current_quote(self)`
+`Currency(...).current_quote`
 ```
 Current trade data
 ```
-`Currency.price(self)`
+`Currency(...).price`
 ```
 Current price
 ```
-`Currency.ask(self)`
+`Currency(...).ask`
 ```
 Current ask price
 ```
-`Currency.bid(self)`
+`Currency(...).bid`
 ```
 Current bid price
 ```
@@ -395,23 +396,23 @@ Attributes:
 ```
 Create a stock from its instrument url
 ```
-`Stock.market_open(self)`
+`Stock(...).market_open`
 ```
 If the market for this stock is open
 ```
-`Stock.current_quote(self)`
+`Stock(...).current_quote`
 ```
 Stock quote info
 ```
-`Stock.price(self)`
+`Stock(...).price`
 ```
 Current price
 ```
-`Stock.ask(self)`
+`Stock(...).ask`
 ```
 Current ask price
 ```
-`Stock.bid(self)`
+`Stock(...).bid`
 ```
 Current bid price
 ```
@@ -435,11 +436,11 @@ Attributes:
     symbol: (str) the symbol traded in the order, defaults None
     asset: (Stock or Currency) the asset traded in the order, defaults None
 ```
-`Order.state(self)`
+`Order(...).state`
 ```
 Get order state [confirmed, cancelled, filled]
 ```
-`Order.cancel(self)`
+`Order(...).cancel`
 ```
 Cancel this order
 ```
@@ -459,21 +460,21 @@ Create trader
 
        Only symbols required, the rest of init is done with .start(...)
 ```
-`BaseTrader._step(self, current_date, *args, **kwargs)`
+`BaseTrader(...)._step(self, current_date, *args, **kwargs)`
 ```
 Run algo one timestep
 
        This is an internal method used by classes which implement BaseTraderself.
        Do not call with algorithm.
 ```
-`BaseTrader.log_as_dataframe(self)`
+`BaseTrader(...).log_as_dataframe`
 ```
 Convert log to a pandas DataFrame
 
 Returns:
     (DataFrame)
 ```
-`BaseTrader.plot(self, columns=['end_portfolio_value', 'end_cash'], ax=None, show=False)`
+`BaseTrader(...).plot(self, columns=['end_portfolio_value', 'end_cash'], ax=None, show=False)`
 ```
 Plot money
 
@@ -482,7 +483,7 @@ Args:
     ax: (Axis) where to plot, defaults to pandas
     show: (bool) display the plot
 ```
-`BaseTrader.plot_assets(self, symbols=None, ax=None, show=False)`
+`BaseTrader(...).plot_assets(self, symbols=None, ax=None, show=False)`
 ```
 Plot assets
 
@@ -491,51 +492,51 @@ Args:
     ax: (Axis) where to plot, defaults to pandas
     show: (bool) display the plot
 ```
-`BaseTrader.start(self, *args, **kwargs)`
+`BaseTrader(...).start(self, *args, **kwargs)`
 ```
 Start.
 
        Universal start method implemented by Traders
 ```
-`BaseTrader.cash(self)`
+`BaseTrader(...).cash`
 ```
 Cash/Buying power
 ```
-`BaseTrader.portfolio_value(self)`
+`BaseTrader(...).portfolio_value`
 ```
 Portfolio value (cash + stocks + currencies)
 ```
-`BaseTrader.quantity(self, symbol)`
+`BaseTrader(...).quantity(self, symbol)`
 ```
 The owned quantity of symbol
 ```
-`BaseTrader.set_quantity(self, symbol, amt)`
+`BaseTrader(...).set_quantity(self, symbol, amt)`
 ```
 Will buy or sell to set quantity of symbol
 ```
-`BaseTrader.price(self, symbol)`
+`BaseTrader(...).price(self, symbol)`
 ```
 Find price of symbol
 ```
-`BaseTrader.buy(self, symbol, amt, **kwargs)`
+`BaseTrader(...).buy(self, symbol, amt, **kwargs)`
 ```
 Buy symbol
 ```
-`BaseTrader.sell(self, symbol, amt, **kwargs)`
+`BaseTrader(...).sell(self, symbol, amt, **kwargs)`
 ```
 Sell symbol
 ```
-`BaseTrader.history(self, symbol, steps)`
+`BaseTrader(...).history(self, symbol, steps)`
 ```
 Get history of symbol over steps * resolution
 ```
-`BaseTrader.setup(self)`
+`BaseTrader(...).setup`
 ```
 Will run before trading.
 
        Override with algorithm but do not call (handled by .start(...))
 ```
-`BaseTrader.loop(self, current_date)`
+`BaseTrader(...).loop(self, current_date)`
 ```
 Will run at each timestep
 
@@ -552,7 +553,7 @@ Attributes:
     dataset: (Dataset) the dataset used
     steps: (list: str) the timestamps covered by the dataset
 ```
-`Backtester(BaseTrader).start(self, dataset, cash=10000, start_idx=50)`
+`Backtester(BaseTrader)(...).start(self, dataset, cash=10000, start_idx=50)`
 ```
 Start the backtesting
 
@@ -562,15 +563,15 @@ Args:
     start_idx: (int) the timestep in the dataset to start, used to ensure
     .history() with have data to return
 ```
-`Backtester(BaseTrader).price(self, symbol)`
+`Backtester(BaseTrader)(...).price(self, symbol)`
 ```
 Randomly determines price based on dataset
 ```
-`Backtester(BaseTrader).buy(self, symbol, amt, **kwargs)`
+`Backtester(BaseTrader)(...).buy(self, symbol, amt, **kwargs)`
 ```
 Simulates a buy
 ```
-`Backtester(BaseTrader).sell(self, symbol, amt, **kwargs)`
+`Backtester(BaseTrader)(...).sell(self, symbol, amt, **kwargs)`
 ```
 Simulates a sell
 ```
@@ -585,7 +586,7 @@ Attributes:
     rbh: (Robinhood*) a robinhood client
     resolution: (str) the trade resolution/frequency
 ```
-`Robinhood(BaseTrader).start(self, robinhood, resolution='1d', until=None)`
+`Robinhood(BaseTrader)(...).start(self, robinhood, resolution='1d', until=None)`
 ```
 Starts live trading
 
@@ -594,19 +595,19 @@ Args:
     resolution: (str) the resolution/freq to trade at
     until: (str) a timestamp at which to stop trading, defaults to forever
 ```
-`Robinhood(BaseTrader).portfolio_value(self)`
+`Robinhood(BaseTrader)(...).portfolio_value`
 ```
 Calc portfolio value based on robinhood assets
 ```
-`Robinhood(BaseTrader).cash(self)`
+`Robinhood(BaseTrader)(...).cash`
 ```
 Robinhood buying power
 ```
-`Robinhood(BaseTrader).price(self, symbol)`
+`Robinhood(BaseTrader)(...).price(self, symbol)`
 ```
 The price according to the Robinhood API
 ```
-`Robinhood(BaseTrader).buy(self, symbol, amt, wait=True, **kwargs)`
+`Robinhood(BaseTrader)(...).buy(self, symbol, amt, wait=True, **kwargs)`
 ```
 Buy stock/currency
 
@@ -617,7 +618,7 @@ Args:
         this will cancel orders which do not finish within a timestep
     **kwargs: additional params passed to rbh.buy
 ```
-`Robinhood(BaseTrader).sell(self, symbol, amt, wait=True, **kwargs)`
+`Robinhood(BaseTrader)(...).sell(self, symbol, amt, wait=True, **kwargs)`
 ```
 Sell stock/currency
 

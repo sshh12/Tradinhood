@@ -39,7 +39,13 @@ def main():
                 markdown.append('### ' + title)
                 prev_class = title
             elif prev_class is not None:
-                title = prev_class + '.' + title
+                if '__init__' in title or 'from_' in title:
+                    title = prev_class + '.' + title
+                else:
+                    title = prev_class + '(...).' + title
+
+            if title.endswith('(self)'):
+                title = title.replace('(self)', '')
 
             markdown.append('`' + title + '`')
             markdown.append('```\n' + '\n'.join(lines) + '\n```')
