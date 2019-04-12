@@ -4,7 +4,9 @@ import requests
 import time
 import uuid
 
+
 getcontext().prec = 18 # The API seems to use 18 digits, so I copied that
+
 
 ENDPOINTS = {
     'token': 'https://api.robinhood.com/oauth2/token/',
@@ -19,6 +21,7 @@ ENDPOINTS = {
     'forex_market_quote': 'https://api.robinhood.com/marketdata/forex/quotes/'
 }
 
+
 API_HEADERS = { # Default header params
     'Accept': '*/*',
     'Connection': 'keep-alive',
@@ -28,19 +31,24 @@ API_HEADERS = { # Default header params
     'X-Robinhood-API-Version': '1.221.0'
 }
 
+
 OAUTH_CLIENT_ID = 'c82SH0WZOsabOXGP2sxqcj34FxkvfnWRZBKlBjFS' # Extracted from robinhood web app
+
 
 class RobinhoodException(Exception):
     """Basic Robinhood exception"""
     pass
 
+
 class APIError(RobinhoodException):
     """An issue interfacing with the Robinhood API"""
     pass
 
+
 class UsageError(RobinhoodException):
     """An issue using this interface"""
     pass
+
 
 class Robinhood:
     """Robinhood API interface
@@ -144,7 +152,7 @@ class Robinhood:
             res = self.session.post(ENDPOINTS['token'], json=req_json)
             res.raise_for_status()
             res_json = res.json()
-        except:
+        except Exception:
             raise APIError('Login failed')
 
         if 'access_token' in res_json:
@@ -187,7 +195,7 @@ class Robinhood:
             stock = Stock(self.session, results[0])
             return stock
 
-        except:
+        except Exception:
             raise APIError('Unable to find asset')
 
     def quantity(self, asset, include_held=False):
@@ -241,7 +249,7 @@ class Robinhood:
         if isinstance(asset, Currency):
 
             assert type in ['market', 'limit']
-            assert stop_price == None
+            assert stop_price is None
 
             amt = str(amt)
 
@@ -281,7 +289,7 @@ class Robinhood:
                 assert stop_price
                 stop_price = str(stop_price)
             else:
-                assert stop_price == None
+                assert stop_price is None
 
             req_json = {
                 'time_in_force': time_in_force,
@@ -375,15 +383,15 @@ class Robinhood:
             if return_json:
                 return [json_stocks, json_crypto]
 
-            orders = [ Order(self.session, json_data, 'stock') for json_data in json_stocks['results'] ]
-            orders += [ Order(self.session, json_data, 'cryptocurrency') for json_data in json_crypto['results'] ]
+            orders = [Order(self.session, json_data, 'stock') for json_data in json_stocks['results']]
+            orders += [Order(self.session, json_data, 'cryptocurrency') for json_data in json_crypto['results']]
 
             if sort_by_time:
                 orders.sort(key=lambda o: o.created_at)
 
             return orders
 
-        except:
+        except Exception:
             raise APIError('Unable to access orders')
 
     def wait_for_orders(self, orders, delay=5, timeout=120, force=False):
@@ -473,11 +481,11 @@ class Robinhood:
         assert self.logged_in
 
         try:
-            assert self.acc_num != None
+            assert self.acc_num is not None
             res = self.session.get(ENDPOINTS['accounts'] + self.acc_num)
             res.raise_for_status()
             return res.json()
-        except:
+        except Exception:
             raise APIError('Unable to access account')
 
     @property
@@ -489,7 +497,7 @@ class Robinhood:
             res = self.session.get(ENDPOINTS['holdings'])
             res.raise_for_status()
             return res.json()['results']
-        except:
+        except Exception:
             raise APIError('Unable to access holdings')
 
     @property
@@ -501,7 +509,7 @@ class Robinhood:
             res = self.session.get(ENDPOINTS['accounts'] + self.acc_num + '/positions/')
             res.raise_for_status()
             return res.json()['results']
-        except:
+        except Exception:
             raise APIError('Unable to access holdings')
 
     @property
@@ -518,6 +526,7 @@ class Robinhood:
     def unsettled_funds(self):
         """Unsettled funds"""
         return Decimal(self.account_info['unsettled_funds'])
+
 
 class Currency:
     """Currency asset object
@@ -562,7 +571,7 @@ class Currency:
             res = self.session.get(ENDPOINTS['forex_market_quote'] + self.pair_id + '/')
             res.raise_for_status()
             return res.json()
-        except:
+        except Exception:
             raise APIError('Unable to access currency data')
 
     @property
@@ -588,6 +597,7 @@ class Currency:
 
     def __repr__(self):
         return f'<Currency ({self.name}) [{self.code}]>'
+
 
 class Stock:
     """Stock asset object
@@ -617,7 +627,7 @@ class Stock:
         self.simple_name = self.json['simple_name']
         self.symbol = self.json['symbol']
         self.code = self.symbol
-        self.tradable = (self.json['tradeable'] == True)
+        self.tradable = self.json['tradeable']
         self.type = self.json['type']
         self.instrument_url = ENDPOINTS['instruments'] + self.id + '/'
         self.market_url = self.json['market']
@@ -640,7 +650,7 @@ class Stock:
             res = self.session.get(self.market_url + 'hours/' + datetime.today().isoformat()[:10] + '/')
             res.raise_for_status()
             return res.json()['is_open']
-        except:
+        except Exception:
             raise APIError('Unable to access market data')
 
     @property
@@ -650,7 +660,7 @@ class Stock:
             res = self.session.get(ENDPOINTS['quotes'] + self.symbol + '/')
             res.raise_for_status()
             return res.json()
-        except:
+        except Exception:
             raise APIError('Unable to access stock data')
 
     @property
@@ -676,6 +686,7 @@ class Stock:
 
     def __repr__(self):
         return f'<Stock ({self.simple_name}) [{self.symbol}]>'
+
 
 class Order:
     """Order object
@@ -757,7 +768,7 @@ class Order:
             res.raise_for_status()
             res_json = res.json()
             return res_json['state']
-        except:
+        except Exception:
             raise APIError('Unable to access order data')
 
     def cancel(self):
@@ -766,7 +777,7 @@ class Order:
             res = self.session.post(self.cancel_url)
             res.raise_for_status()
             return res.json()
-        except:
+        except Exception:
             raise APIError('Unable to cancel')
 
     def __repr__(self):

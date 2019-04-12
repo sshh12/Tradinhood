@@ -4,7 +4,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="tradinhood-sshh12",
+    name="tradinhood",
     version="0.0.1",
     author="Shrivu Shankar",
     author_email="shrivu1122@gmail.com",
