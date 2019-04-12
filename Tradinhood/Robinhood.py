@@ -98,7 +98,8 @@ class Robinhood:
             if not acc_num:
                 res_json = self.session.get(ENDPOINTS['accounts']).json()['results']
                 if len(res_json) == 0:
-                    raise APIError('No accounts found.')
+                    raise APIError('No robinhood accounts found. ' +
+                                   'You may still be in the process of being verified.')
                 self.acc_num = res_json[0]['account_number']
             else:
                 self.acc_num = acc_num
@@ -107,6 +108,9 @@ class Robinhood:
 
             if not nummus_id:
                 res_nummus_json = self.session.get(ENDPOINTS['nummus_accounts']).json()['results']
+                if len(res_nummus_json) == 0:
+                    raise APIError('No robinhood crypto accounts found. ' +
+                                   'Try buying some online to get this part of your account activated.')
                 self.nummus_id = res_nummus_json[0]['id']
             else:
                 self.nummus_id = nummus_id
@@ -114,7 +118,7 @@ class Robinhood:
         except KeyError:
             raise APIError('Unable to load secure content (retry login)')
 
-    def login(self, token='', username='', password='', acc_num=None, nummus_id=None):
+    def login(self, token='', username='', password='', mfa_code='', acc_num=None, nummus_id=None):
         """Login/Authenticate
 
         Args:
@@ -122,6 +126,7 @@ class Robinhood:
                 since API token already known
             username: (str) required login information if token not specified
             password: (str) required login information if token not specified
+            mfa_code: (str) 2 Factor code, required if enabled on the account
             acc_num: (str, optional) manual specify the account number
             nummus_id: (str, optional) manual specify the nummus id
 
@@ -141,8 +146,8 @@ class Robinhood:
         if not username or not password: # If not provided, manually prompt
 
             import getpass
-            username = input('Username > ')
-            password = getpass.getpass('Password (Hidden) > ')
+            username = input('Username: ')
+            password = getpass.getpass('Password (Hidden): ')
 
         req_json = {
             'client_id': OAUTH_CLIENT_ID,
@@ -153,12 +158,25 @@ class Robinhood:
             'password': password
         }
 
+        if mfa_code:
+            req_json['mfa_code'] = mfa_code
+
         try:
             res = self.session.post(ENDPOINTS['token'], json=req_json)
             res.raise_for_status()
             res_json = res.json()
         except Exception:
             raise APIError('Login failed')
+
+        if 'mfa_required' in res_json and res_json['mfa_required']:
+            mfa_code = input('MFA Code: ')
+            req_json['mfa_code'] = mfa_code
+            try:
+                res = self.session.post(ENDPOINTS['token'], json=req_json)
+                res.raise_for_status()
+                res_json = res.json()
+            except Exception:
+                raise APIError('MFA auth failed')
 
         if 'access_token' in res_json:
 
