@@ -5,7 +5,8 @@ import pandas as pd
 import random
 import time
 
-from .Dataset import RESOLUTIONS
+from .dataset import RESOLUTIONS
+
 
 class BaseTrader:
     """The abstract trader
@@ -78,7 +79,8 @@ class BaseTrader:
         """
         df = self.log_as_dataframe()
         df[columns].plot(ax=ax)
-        if show: plt.show()
+        if show:
+            plt.show()
 
     def plot_assets(self, symbols=None, ax=None, show=False):
         """Plot assets
@@ -92,7 +94,8 @@ class BaseTrader:
             symbols = self.symbols
         df = self.log_as_dataframe()
         df[['end_owned_' + symbol for symbol in self.symbols]].plot(ax=ax)
-        if show: plt.show()
+        if show:
+            plt.show()
 
     ### Runner Methods ###
 
@@ -161,6 +164,7 @@ class BaseTrader:
         Override with algorithm but do not call (handled by .start(...))
         """
         pass
+
 
 class Backtester(BaseTrader):
     """A backtester
@@ -242,6 +246,7 @@ class Backtester(BaseTrader):
             return True
         else:
             return False
+
 
 class Robinhood(BaseTrader):
     """A Robinhood trader

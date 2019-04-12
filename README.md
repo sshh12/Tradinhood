@@ -2,12 +2,19 @@
 
 Programmatically trading stocks and crypto with Robinhood.
 
+```shell
+$ git clone https://github.com/sshh12/Tradinhood.git
+$ python setup.py install
+```
+
+[Docs](https://github.com/sshh12/Tradinhood/blob/master/docs/DOCS.md)
+
 ## Robinhood
 
 Example Usage:
 
 ```python
-from Tradinhood import Robinhood
+from tradinhood import Robinhood
 from decimal import Decimal
 
 rbh = Robinhood()

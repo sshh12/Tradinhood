@@ -1,5 +1,5 @@
-from dataclasses import dataclass
 from collections import defaultdict
+from dataclasses import dataclass
 import matplotlib.pyplot as plt
 from datetime import datetime
 from decimal import Decimal
@@ -7,16 +7,19 @@ import pandas as pd
 import requests
 import pickle
 
+
 RESOLUTIONS = { # The possible dataset resolutions (e.i. every min, every day, etc)
     '1m': 60,
-    '5m': 60*5,
-    '1h': 60*60,
-    '1d': 60*60*24
+    '5m': 60 * 5,
+    '1h': 60 * 60,
+    '1d': 60 * 60 * 24
 }
+
 
 class DatasetException(Exception):
     """Exception thrown by a dataset method"""
     pass
+
 
 @dataclass
 class OHLCV:
@@ -36,6 +39,7 @@ class OHLCV:
     low: float
     close: float
     volume: float
+
 
 class Dataset:
     """Dataset object
@@ -129,7 +133,7 @@ class Dataset:
             assert resolution == '1d'
             chartInterval = 1
         else:
-            assert resolution in ['1m' , '5m', '1h'] # else if 1d, force min or hour resolution
+            assert resolution in ['1m', '5m', '1h'] # else if 1d, force min or hour resolution
             chartInterval = RESOLUTIONS[resolution] // 60 # interval is based on mins between datapoint
 
         symbol_str = ','.join(symbols)
@@ -148,7 +152,7 @@ class Dataset:
                 close = data['close']
                 volume = data['volume']
 
-                if resolution in ['1m' , '5m', '1h']:
+                if resolution in ['1m', '5m', '1h']:
                     date = datetime.strptime(data['date'] + data['minute'], '%Y%m%d%H:%M')
                 else:
                     date = datetime.strptime(data['date'], '%Y-%m-%d')
@@ -204,7 +208,6 @@ class Dataset:
 
         return Dataset(new_data, resolution, [symbol])
 
-
     @classmethod
     def from_file(self, filename):
         """Load from file
@@ -219,7 +222,7 @@ class Dataset:
             with open(filename, 'rb') as f:
                 dataset = pickle.load(f)
             return Dataset(dataset.data, dataset.resolution, dataset.symbols) # Cloning params into new dataset for compatibility
-        except:
+        except Exception:
             raise DatasetException('Could not load file ' + filename)
 
     def save(self, filename):
@@ -304,7 +307,8 @@ class Dataset:
 
         df = self.as_dataframe(symbols)[filter_].plot(ax=ax, title=str(self)) # dataset -> dataframe -> filter cols -> plot
 
-        if show: plt.show()
+        if show:
+            plt.show()
 
     def __len__(self):
         """The num of timesteps in the dataset"""
