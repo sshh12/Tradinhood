@@ -87,6 +87,9 @@ class Robinhood:
         Args:
             acc_num: (str, optional) manually specify the account number
             nummus_id: (str, optional) manually specify the nummus id
+
+        Raises:
+            APIError: If logged in but no account found
         """
         assert self.logged_in
 
@@ -94,6 +97,8 @@ class Robinhood:
 
             if not acc_num:
                 res_json = self.session.get(ENDPOINTS['accounts']).json()['results']
+                if len(res_json) == 0:
+                    raise APIError('No accounts found.')
                 self.acc_num = res_json[0]['account_number']
             else:
                 self.acc_num = acc_num
