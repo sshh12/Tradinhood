@@ -5,7 +5,8 @@ import time
 import uuid
 
 
-getcontext().prec = 18 # The API seems to use 18 digits, so I copied that
+# The API seems to use 18 digits, so I copied that
+getcontext().prec = 18
 
 
 ENDPOINTS = {
@@ -32,7 +33,8 @@ API_HEADERS = { # Default header params
 }
 
 
-OAUTH_CLIENT_ID = 'c82SH0WZOsabOXGP2sxqcj34FxkvfnWRZBKlBjFS' # Extracted from robinhood web app
+# Extracted from robinhood web app
+OAUTH_CLIENT_ID = 'c82SH0WZOsabOXGP2sxqcj34FxkvfnWRZBKlBjFS'
 
 
 class RobinhoodException(Exception):
@@ -60,7 +62,6 @@ class Robinhood:
         account_url: (str) The account url
         logged_in: (bool) If successfully authenticated
     """
-
     token = None
     acc_num = None
     nummus_id = None
@@ -188,6 +189,9 @@ class Robinhood:
             return True
 
         return False
+
+    def __repr__(self):
+        return '<Robinhood [Account: {}]>'.format(self.acc_num)
 
     def __getitem__(self, symbol):
         """Access items using robinhood[symbol]
@@ -436,24 +440,25 @@ class Robinhood:
             time.sleep(delay)
             checks -= 1
 
+        # cancel orders not completed
         if force:
             for order in orders:
-                if order.state == 'confirmed': # cancel orders not completed
+                if order.state in ['confirmed', 'queued']: 
                     order.cancel()
 
         return all(map(order_complete, orders))
 
-    def get_assets(self, include_positions=True, include_holdings=True, include_held=False):
+    def get_assets(self, include_positions=True, include_holdings=True, include_held=False, include_zero=False):
         """Get all owned assets
 
         Args:
             include_positions: (bool) whether to include stocks
             include_holdings: (bool) whether to include currencies
             include_held: (bool) whether to include held assets
+            include_zero: (bool) whether to include assets with zero quantity
 
         Returns:
-            (dict) Stock or Currency objects paired with quantities, note:
-                some quantities may be zero
+            (dict) Stock or Currency objects paired with quantities
         """
         assert self.logged_in
 
@@ -468,7 +473,7 @@ class Robinhood:
                 stock = Stock.from_url(self.session, stock_json['instrument'])
                 amt = Decimal(stock_json['quantity'])
 
-                if include_held:
+                if include_held and (include_zero or amt > 0):
                     amt += Decimal(stock_json['shares_held_for_buys'])
                     amt += Decimal(stock_json['shares_held_for_sells'])
                     amt += Decimal(stock_json['shares_held_for_options_collateral'])
@@ -490,7 +495,7 @@ class Robinhood:
                     curr = Currency.cache[code]
                     amt = Decimal(curr_json['quantity_available'])
 
-                    if include_held:
+                    if include_held and (include_zero or amt > 0):
                         amt += Decimal(curr_json['quantity_held_for_buy'])
                         amt += Decimal(curr_json['quantity_held_for_sell'])
 
@@ -564,7 +569,6 @@ class Currency:
         pair_id: (str) currency Pair id
         asset_id: (str) the APIs id for this currency
     """
-
     cache = {}
 
     def __init__(self, session, asset_json):
@@ -637,7 +641,6 @@ class Stock:
         instrument_url: (str) the instrument url for this stock
         id: (str) the APIs id for this stock
     """
-
     cache = {}
 
     def __init__(self, session, instrument_json):
@@ -720,6 +723,7 @@ class Order:
         id: (str) the order id
         side: (str) buy or sell
         time_in_force: (str) how the order in enforced
+        created_at: (str) when the order was created
         quantity: (Decimal) quantity of the asset
         asset_type: (str) cryptocurrency or stock
         cancel_url: (str) the url to cancel the order
@@ -729,7 +733,6 @@ class Order:
         symbol: (str) the symbol traded in the order, defaults None
         asset: (Stock or Currency) the asset traded in the order, defaults None
     """
-
     def __init__(self, session, order_json, asset_type, symbol=None, asset=None):
 
         self.session = session
@@ -785,7 +788,7 @@ class Order:
 
     @property
     def state(self):
-        """Get order state [confirmed, cancelled, filled]"""
+        """Get order state [confirmed, queued, cancelled, filled]"""
         try:
             res = self.session.get(self.url)
             res.raise_for_status()
