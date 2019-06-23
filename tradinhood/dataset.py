@@ -1,5 +1,4 @@
 from collections import defaultdict
-from dataclasses import dataclass
 import matplotlib.pyplot as plt
 from datetime import datetime
 from decimal import Decimal
@@ -21,7 +20,6 @@ class DatasetException(Exception):
     pass
 
 
-@dataclass
 class OHLCV:
     """OHLCV
 
@@ -34,11 +32,12 @@ class OHLCV:
         close: (float)
         volume: (float)
     """
-    open: float
-    high: float
-    low: float
-    close: float
-    volume: float
+    def __init__(self, open_, high, low, close, volume):
+        self.open = float(open_)
+        self.high = float(high)
+        self.low = float(low)
+        self.close = float(close)
+        self.volume = float(volume)
 
 
 class Dataset:
@@ -75,6 +74,9 @@ class Dataset:
 
         Returns:
             (Dataset) with prescribed params and data
+
+        Note:
+            No longer supported by Google.
         """
         interval = RESOLUTIONS[resolution]
 
@@ -92,12 +94,6 @@ class Dataset:
 
             date, close, high, low, open_, volume = line.split(',')
 
-            open_ = float(open_)
-            high = float(high)
-            low = float(low)
-            close = float(close)
-            volume = float(volume)
-
             if date.startswith('a'):
                 date = int(date[1:])
                 ref_date = date
@@ -114,54 +110,48 @@ class Dataset:
         return Dataset(new_data, resolution, [symbol])
 
     @classmethod
-    def from_iextrading_charts(self, symbols, period='1d', resolution='1d'):
-        """Fetch data from iextrading
+    def from_alphavantage(self, symbol, resolution='1d', api_key='demo'):
+        """Fetch data from AlphaVantage
 
         Args:
-            symbol: (str or list: str) stock(s) to Fetch
-            resolution: (str) The required resolution
-                which must be a key of `RESOLUTIONS`
-            period: (str) The amount of time to fetch
-
+            symbol: (str) Stock to Fetch
+            resolution: (str) The required resolution [5m, 1d]
+            api_key: (str) Your API key
         Returns:
             (Dataset) with prescribed params and data
         """
-        if isinstance(symbols, str): # AMZN -> ['AMZN']
-            symbols = [symbols]
+        assert resolution in ['1d', '5m']
 
-        if period != '1d': # if request spans more than a day, force 1d resolution
-            assert resolution == '1d'
-            chartInterval = 1
+        url = 'https://www.alphavantage.co/query?outputsize=full&symbol={}&apikey={}'.format(symbol, api_key)
+        if resolution == '1d':
+            url += '&function=TIME_SERIES_DAILY'
+            data_key = 'Time Series (Daily)'
+            time_format = '%Y-%m-%d'
         else:
-            assert resolution in ['1m', '5m', '1h'] # else if 1d, force min or hour resolution
-            chartInterval = RESOLUTIONS[resolution] // 60 # interval is based on mins between datapoint
+            url += '&function=TIME_SERIES_INTRADAY&interval=5min'
+            data_key = 'Time Series (5min)'
+            time_format = '%Y-%m-%d %H:%M:%S'
 
-        symbol_str = ','.join(symbols)
-        url = f'https://api.iextrading.com/1.0/stock/market/batch?symbols={symbol_str}&types=chart&range={period}&chartInterval={chartInterval}'
         res = requests.get(url).json()
-
         new_data = defaultdict(dict)
 
-        for symbol in symbols:
+        for timestamp in res[data_key]:
 
-            for data in res[symbol]['chart']:
+            date = datetime.strptime(timestamp, time_format)
+            tick_data = res[data_key][timestamp]
+            price_data = OHLCV(
+                tick_data['1. open'], 
+                tick_data['2. high'], 
+                tick_data['3. low'], 
+                tick_data['4. close'], 
+                tick_data['5. volume']
+            )
+            new_data[date][symbol] = price_data
 
-                open_ = data['open']
-                high = data['high']
-                low = data['low']
-                close = data['close']
-                volume = data['volume']
+        if len(new_data) == 0:
+            raise DatasetException('No data')
 
-                if resolution in ['1m', '5m', '1h']:
-                    date = datetime.strptime(data['date'] + data['minute'], '%Y%m%d%H:%M')
-                else:
-                    date = datetime.strptime(data['date'], '%Y-%m-%d')
-
-                timestamp = date.isoformat()
-
-                new_data[timestamp][symbol] = OHLCV(open_, high, low, close, volume)
-
-        return Dataset(new_data, resolution, symbols)
+        return Dataset(new_data, resolution, [symbol])
 
     @classmethod
     def from_cryptocompare(self, symbol, resolution='1d', to_symbol='USD', limit=3000, last_unix_time=None):
