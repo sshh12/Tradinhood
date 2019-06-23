@@ -165,6 +165,13 @@ class BaseTrader:
         """
         pass
 
+    def clean_up(self):
+        """Will run when algo is done running.
+
+        Override with algorithm but do not call (handled by .start(...))
+        """
+        pass
+
 
 class Backtester(BaseTrader):
     """A backtester
@@ -175,7 +182,6 @@ class Backtester(BaseTrader):
         dataset: (Dataset) the dataset used
         steps: (list: str) the timestamps covered by the dataset
     """
-
     def start(self, dataset, cash=10000, start_idx=50):
         """Start the backtesting
 
@@ -202,6 +208,8 @@ class Backtester(BaseTrader):
 
             self.idx = i
             self._step(current_date)
+
+        self.clean_up()
 
     @property
     def cash(self):
@@ -257,7 +265,6 @@ class Robinhood(BaseTrader):
         rbh: (Robinhood*) a robinhood client
         resolution: (str) the trade resolution/frequency
     """
-
     def start(self, robinhood, resolution='1d', until=None):
         """Starts live trading
 
@@ -293,11 +300,13 @@ class Robinhood(BaseTrader):
             else:
                 time.sleep(wait_time)
 
+        self.clean_up()
+
     @property
     def portfolio_value(self):
         """Calc portfolio value based on robinhood assets"""
         value = self.cash
-        for asset, amt in self.rbh.get_assets():
+        for asset, amt in self.rbh.get_assets().items():
             if amt > 0:
                 value += amt * asset.price
         return value
