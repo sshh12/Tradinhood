@@ -71,6 +71,8 @@ dataset = Dataset.from_google('MU', period='1Y', resolution='1d')
 dataset |= Dataset.from_google('AMD', period='1Y', resolution='1d') # a |= b to merge from b to a
 dataset |= Dataset.from_google('INTC', period='1Y', resolution='1d')
 dataset |= Dataset.from_google('GOOG', period='1Y', resolution='1d')
+# or use a different source
+dataset = Dataset.from_alphavantage('MSFT', resolution='5m', api_key='....')
 
 # or some crypto data
 dataset = Dataset.from_cryptocompare('BTC', resolution='1d', limit=1000)
