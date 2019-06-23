@@ -50,17 +50,18 @@ Args:
 
 Returns:
     (Dataset) with prescribed params and data
+
+Note:
+    No longer supported by Google.
 ```
-`Dataset.from_iextrading_charts(self, symbols, period='1d', resolution='1d')`
+`Dataset.from_alphavantage(self, symbol, resolution='1d', api_key='demo')`
 ```
-Fetch data from iextrading
+Fetch data from AlphaVantage
 
 Args:
-    symbol: (str or list: str) stock(s) to Fetch
-    resolution: (str) The required resolution
-        which must be a key of `RESOLUTIONS`
-    period: (str) The amount of time to fetch
-
+    symbol: (str) Stock to Fetch
+    resolution: (str) The required resolution [5m, 1d]
+    api_key: (str) Your API key
 Returns:
     (Dataset) with prescribed params and data
 ```
@@ -303,7 +304,7 @@ Args:
 Returns:
     (bool) if the orders where complete
 ```
-`Robinhood(...).get_assets(self, include_positions=True, include_holdings=True, include_held=False)`
+`Robinhood(...).get_assets(self, include_positions=True, include_holdings=True, include_held=False, include_zero=False)`
 ```
 Get all owned assets
 
@@ -311,10 +312,10 @@ Args:
     include_positions: (bool) whether to include stocks
     include_holdings: (bool) whether to include currencies
     include_held: (bool) whether to include held assets
+    include_zero: (bool) whether to include assets with zero quantity
 
 Returns:
-    (dict) Stock or Currency objects paired with quantities, note:
-        some quantities may be zero
+    (dict) Stock or Currency objects paired with quantities
 ```
 `Robinhood(...).account_info`
 ```
@@ -427,6 +428,7 @@ Attributes:
     id: (str) the order id
     side: (str) buy or sell
     time_in_force: (str) how the order in enforced
+    created_at: (str) when the order was created
     quantity: (Decimal) quantity of the asset
     asset_type: (str) cryptocurrency or stock
     cancel_url: (str) the url to cancel the order
@@ -438,7 +440,7 @@ Attributes:
 ```
 `Order(...).state`
 ```
-Get order state [confirmed, cancelled, filled]
+Get order state [confirmed, queued, cancelled, filled]
 ```
 `Order(...).cancel`
 ```
@@ -539,6 +541,12 @@ Will run before trading.
 `BaseTrader(...).loop(self, current_date)`
 ```
 Will run at each timestep
+
+       Override with algorithm but do not call (handled by .start(...))
+```
+`BaseTrader(...).clean_up`
+```
+Will run when algo is done running.
 
        Override with algorithm but do not call (handled by .start(...))
 ```
