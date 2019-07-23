@@ -16,6 +16,7 @@ ENDPOINTS = {
     'orders': 'https://api.robinhood.com/orders/',
     'holdings': 'https://nummus.robinhood.com/holdings/',
     'instruments': 'https://api.robinhood.com/instruments/',
+    'market_data': 'https://api.robinhood.com/marketdata/',
     'nummus_orders': 'https://nummus.robinhood.com/orders/',
     'currency_pairs': 'https://nummus.robinhood.com/currency_pairs/',
     'nummus_accounts': 'https://nummus.robinhood.com/accounts/',
@@ -668,6 +669,15 @@ class Stock:
                 return stock
 
         return Stock(session, session.get(instrument_url).json())
+
+    def history(self, bounds='regular', interval='day', span='year'):
+        """Retrieve the price history of this stock"""
+        try:
+            res = self.session.get(ENDPOINTS['market_data'] + 
+                'historicals/{}/?bounds={}&interval={}&span={}'.format(self.symbol, bounds, interval, span))
+            return res.json()['historicals']
+        except Exception:
+            raise APIError('Unable to access historical market data')
 
     @property
     def market_open(self):

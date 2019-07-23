@@ -1,10 +1,12 @@
 from collections import defaultdict
 import matplotlib.pyplot as plt
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from decimal import Decimal
 import pandas as pd
 import requests
 import pickle
+
+from .robinhood import Stock, Currency
 
 
 RESOLUTIONS = { # The possible dataset resolutions (e.i. every min, every day, etc)
@@ -197,6 +199,45 @@ class Dataset:
             raise DatasetException('No data')
 
         return Dataset(new_data, resolution, [symbol])
+
+    @classmethod
+    def from_robinhood(self, asset, resolution='1d'):
+        """Fetch data from Robinhood
+
+        Args:
+            asset: (Stock or Crypto) A robinhood Stock/Crypto to fetch
+            resolution: (str) The required resolution [5m, 1d]
+
+        Returns:
+            (Dataset) with prescribed params and data
+        """
+        new_data = defaultdict(dict)
+        interval, span = {
+            '5m': ('5minute', 'day'),
+            '1d': ('day', 'year')
+        }[resolution]
+
+        if isinstance(asset, Stock):
+
+            price_data = asset.history(interval=interval, span=span)
+            for frame in price_data:
+                open_ = frame['open_price']
+                high = frame['high_price']
+                low = frame['low_price']
+                close = frame['close_price']
+                volume = frame['volume']
+                date = frame['begins_at']
+                timestamp = datetime.strptime(date, "%Y-%m-%dT%H:%M:%SZ").replace(
+                    tzinfo=timezone(timedelta(0)))
+                new_data[timestamp][asset.symbol] = OHLCV(open_, high, low, close, volume)
+
+            return Dataset(new_data, resolution, [asset.symbol])
+
+        elif isinstance(asset, Currency):
+            # TODO
+            pass
+        else:
+            raise DatasetException('Invalid asset provided, use robinhood[...].')
 
     @classmethod
     def from_file(self, filename):
