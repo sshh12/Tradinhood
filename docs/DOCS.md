@@ -87,7 +87,7 @@ Fetch data from Robinhood
 
 Args:
     asset: (Stock or Crypto) A robinhood Stock/Crypto to fetch
-    resolution: (str) The required resolution [5m, 1d]
+    resolution: (str) The required resolution [15s, 5m, 1d, 1w]
 
 Returns:
     (Dataset) with prescribed params and data

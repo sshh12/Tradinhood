@@ -10,10 +10,12 @@ from .robinhood import Stock, Currency
 
 
 RESOLUTIONS = { # The possible dataset resolutions (e.i. every min, every day, etc)
+    '15s': 15,
     '1m': 60,
     '5m': 60 * 5,
     '1h': 60 * 60,
-    '1d': 60 * 60 * 24
+    '1d': 60 * 60 * 24,
+    '1w': 60 * 60 * 24 * 7
 }
 
 
@@ -206,15 +208,17 @@ class Dataset:
 
         Args:
             asset: (Stock or Crypto) A robinhood Stock/Crypto to fetch
-            resolution: (str) The required resolution [5m, 1d]
+            resolution: (str) The required resolution [15s, 5m, 1d, 1w]
 
         Returns:
             (Dataset) with prescribed params and data
         """
         new_data = defaultdict(dict)
         interval, span = {
+            '15s': ('15second', 'hour'),
             '5m': ('5minute', 'day'),
-            '1d': ('day', 'year')
+            '1d': ('day', 'year'),
+            '1w': ('week', '5year')
         }[resolution]
 
         if isinstance(asset, (Currency, Stock)):
