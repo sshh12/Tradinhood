@@ -217,7 +217,7 @@ class Dataset:
             '1d': ('day', 'year')
         }[resolution]
 
-        if isinstance(asset, Stock):
+        if isinstance(asset, (Currency, Stock)):
 
             price_data = asset.history(interval=interval, span=span)
             for frame in price_data:
@@ -229,13 +229,10 @@ class Dataset:
                 date = frame['begins_at']
                 timestamp = datetime.strptime(date, "%Y-%m-%dT%H:%M:%SZ").replace(
                     tzinfo=timezone(timedelta(0)))
-                new_data[timestamp][asset.symbol] = OHLCV(open_, high, low, close, volume)
+                new_data[timestamp][asset.code] = OHLCV(open_, high, low, close, volume)
 
-            return Dataset(new_data, resolution, [asset.symbol])
+            return Dataset(new_data, resolution, [asset.code])
 
-        elif isinstance(asset, Currency):
-            # TODO
-            pass
         else:
             raise DatasetException('Invalid asset provided, use robinhood[...].')
 
