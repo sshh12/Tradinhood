@@ -72,6 +72,7 @@ class Robinhood:
         """Creates session used in client"""
         self.session = requests.session()
         self.session.headers = API_HEADERS
+        self.device_token = str(uuid.uuid4())
         self._load()
 
     def _load(self):
@@ -156,7 +157,8 @@ class Robinhood:
             'grant_type': 'password',
             'scope': 'internal',
             'username': username,
-            'password': password
+            'password': password,
+            'device_token': self.device_token
         }
 
         if mfa_code:
