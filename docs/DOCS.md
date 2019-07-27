@@ -81,6 +81,17 @@ Args:
 Returns:
     (Dataset) with prescribed params and data
 ```
+`Dataset.from_robinhood(self, asset, resolution='1d')`
+```
+Fetch data from Robinhood
+
+Args:
+    asset: (Stock or Crypto) A robinhood Stock/Crypto to fetch
+    resolution: (str) The required resolution [15s, 5m, 1d, 1w]
+
+Returns:
+    (Dataset) with prescribed params and data
+```
 `Dataset.from_file(self, filename)`
 ```
 Load from file
@@ -356,6 +367,10 @@ Attributes:
     pair_id: (str) currency Pair id
     asset_id: (str) the APIs id for this currency
 ```
+`Currency(...).history(self, bounds='24_7', interval='day', span='year')`
+```
+Retrieve the price history of this crypto
+```
 `Currency(...).market_open`
 ```
 Is this crypto's market open
@@ -396,6 +411,10 @@ Attributes:
 `Stock.from_url(self, session, instrument_url)`
 ```
 Create a stock from its instrument url
+```
+`Stock(...).history(self, bounds='regular', interval='day', span='year')`
+```
+Retrieve the price history of this stock
 ```
 `Stock(...).market_open`
 ```

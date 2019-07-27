@@ -16,9 +16,11 @@ ENDPOINTS = {
     'orders': 'https://api.robinhood.com/orders/',
     'holdings': 'https://nummus.robinhood.com/holdings/',
     'instruments': 'https://api.robinhood.com/instruments/',
+    'historicals': 'https://api.robinhood.com/marketdata/historicals/',
     'nummus_orders': 'https://nummus.robinhood.com/orders/',
     'currency_pairs': 'https://nummus.robinhood.com/currency_pairs/',
     'nummus_accounts': 'https://nummus.robinhood.com/accounts/',
+    'nummus_historicals': 'https://api.robinhood.com/marketdata/forex/historicals/',
     'forex_market_quote': 'https://api.robinhood.com/marketdata/forex/quotes/'
 }
 
@@ -588,6 +590,15 @@ class Currency:
 
         Currency.cache[self.code] = self
 
+    def history(self, bounds='24_7', interval='day', span='year'):
+        """Retrieve the price history of this crypto"""
+        try:
+            res = self.session.get(ENDPOINTS['nummus_historicals'] + 
+                '{}/?bounds={}&interval={}&span={}'.format(self.pair_id, bounds, interval, span))
+            return res.json()['data_points']
+        except Exception:
+            raise APIError('Unable to access historical market data')
+
     @property
     def market_open(self):
         """Is this crypto's market open"""
@@ -670,6 +681,15 @@ class Stock:
                 return stock
 
         return Stock(session, session.get(instrument_url).json())
+
+    def history(self, bounds='regular', interval='day', span='year'):
+        """Retrieve the price history of this stock"""
+        try:
+            res = self.session.get(ENDPOINTS['historicals'] + 
+                '{}/?bounds={}&interval={}&span={}'.format(self.symbol, bounds, interval, span))
+            return res.json()['historicals']
+        except Exception:
+            raise APIError('Unable to access historical market data')
 
     @property
     def market_open(self):

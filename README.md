@@ -72,6 +72,9 @@ dataset |= Dataset.from_google('INTC', period='1Y', resolution='1d')
 dataset |= Dataset.from_google('GOOG', period='1Y', resolution='1d')
 # or use a different source
 dataset = Dataset.from_alphavantage('MSFT', resolution='5m', api_key='....')
+# like Robinhood (see Robinhood usage)
+dataset = Dataset.from_robinhood(rbh['BTC'], resolution='5m')
+dataset |= Dataset.from_robinhood(rbh['AMD'], resolution='5m')
 
 # or some crypto data
 dataset = Dataset.from_cryptocompare('BTC', resolution='1d', limit=1000)
