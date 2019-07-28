@@ -11,6 +11,7 @@ getcontext().prec = 18
 
 ENDPOINTS = {
     'token': 'https://api.robinhood.com/oauth2/token/',
+    'challenge': 'https://api.robinhood.com/challenge/',
     'accounts': 'https://api.robinhood.com/accounts/',
     'quotes': 'https://api.robinhood.com/quotes/',
     'orders': 'https://api.robinhood.com/orders/',
@@ -122,7 +123,7 @@ class Robinhood:
         except KeyError:
             raise APIError('Unable to load secure content (retry login)')
 
-    def login(self, token='', username='', password='', mfa_code='', acc_num=None, nummus_id=None):
+    def login(self, token='', username='', password='', mfa_code='', verification='sms', acc_num=None, nummus_id=None):
         """Login/Authenticate
 
         Args:
@@ -131,6 +132,7 @@ class Robinhood:
             username: (str) required login information if token not specified
             password: (str) required login information if token not specified
             mfa_code: (str) 2 Factor code, required if enabled on the account
+            verification: (str) The type of verification to use if required [sms, email]
             acc_num: (str, optional) manual specify the account number
             nummus_id: (str, optional) manual specify the nummus id
 
@@ -148,7 +150,6 @@ class Robinhood:
             return True
 
         if not username or not password: # If not provided, manually prompt
-
             import getpass
             username = input('Username: ')
             password = getpass.getpass('Password (Hidden): ')
@@ -160,18 +161,36 @@ class Robinhood:
             'scope': 'internal',
             'username': username,
             'password': password,
-            'device_token': self.device_token
+            'device_token': self.device_token,
+            'challenge_type': verification
         }
 
         if mfa_code:
             req_json['mfa_code'] = mfa_code
 
+        res_json = {}
         try:
             res = self.session.post(ENDPOINTS['token'], json=req_json)
-            res.raise_for_status()
             res_json = res.json()
+            if 'detail' in res_json and 'challenge issued' not in res_json['detail']:
+                res.raise_for_status()
         except Exception:
-            raise APIError('Login failed')
+            raise APIError('Login failed ' + str(res_json))
+
+        if 'detail' in res_json and 'challenge issued' in res_json['detail']:
+            code = input('Verification Code: ')
+            challenge_id = res_json['challenge']['id']
+            challenge_res = self.session.post(
+                ENDPOINTS['challenge'] + challenge_id + '/respond/', json={'response': code})
+            if challenge_res.json()['status'] != 'validated':
+                raise APIError('Provided challenge code failed.')
+            self.session.headers['X-ROBINHOOD-CHALLENGE-RESPONSE-ID'] = challenge_id
+            try:
+                res = self.session.post(ENDPOINTS['token'], json=req_json)
+                res.raise_for_status()
+                res_json = res.json()
+            except Exception:
+                raise APIError('Challenge auth failed')
 
         if 'mfa_required' in res_json and res_json['mfa_required']:
             mfa_code = input('MFA Code: ')
