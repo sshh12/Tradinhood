@@ -123,8 +123,7 @@ class Robinhood:
         except KeyError:
             raise APIError('Unable to load secure content (retry login)')
 
-    def login(self, token='', username='', password='', mfa_code='', \
-            verification='sms', acc_num=None, nummus_id=None):
+    def login(self, token='', username='', password='', mfa_code='', verification='sms', acc_num=None, nummus_id=None):
         """Login/Authenticate
 
         Args:
@@ -151,7 +150,6 @@ class Robinhood:
             return True
 
         if not username or not password: # If not provided, manually prompt
-
             import getpass
             username = input('Username: ')
             password = getpass.getpass('Password (Hidden): ')
@@ -184,6 +182,8 @@ class Robinhood:
             challenge_id = res_json['challenge']['id']
             challenge_res = self.session.post(
                 ENDPOINTS['challenge'] + challenge_id + '/respond/', json={'response': code})
+            if challenge_res.json()['status'] != 'validated':
+                raise APIError('Provided challenge code failed.')
             self.session.headers['X-ROBINHOOD-CHALLENGE-RESPONSE-ID'] = challenge_id
             try:
                 res = self.session.post(ENDPOINTS['token'], json=req_json)

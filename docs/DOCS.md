@@ -204,7 +204,7 @@ Args:
 Raises:
     APIError: If logged in but no account found
 ```
-`Robinhood(...).login(self, token='', username='', password='', mfa_code='', acc_num=None, nummus_id=None)`
+`Robinhood(...).login(self, token='', username='', password='', mfa_code='', verification='sms', acc_num=None, nummus_id=None)`
 ```
 Login/Authenticate
 
@@ -214,6 +214,7 @@ Args:
     username: (str) required login information if token not specified
     password: (str) required login information if token not specified
     mfa_code: (str) 2 Factor code, required if enabled on the account
+    verification: (str) The type of verification to use if required [sms, email]
     acc_num: (str, optional) manual specify the account number
     nummus_id: (str, optional) manual specify the nummus id
 
