@@ -507,14 +507,15 @@ class Robinhood:
                 stock = Stock.from_url(self.session, stock_json['instrument'])
                 amt = Decimal(stock_json['quantity'])
 
-                if include_held and (include_zero or amt > 0):
+                if include_held:
                     amt += Decimal(stock_json['shares_held_for_buys'])
                     amt += Decimal(stock_json['shares_held_for_sells'])
                     amt += Decimal(stock_json['shares_held_for_options_collateral'])
                     amt += Decimal(stock_json['shares_held_for_options_events'])
                     amt += Decimal(stock_json['shares_held_for_stock_grants'])
 
-                my_assets[stock] = amt
+                if include_zero or amt > 0:
+                    my_assets[stock] = amt
 
         if include_holdings:
 
@@ -529,11 +530,12 @@ class Robinhood:
                     curr = Currency.cache[code]
                     amt = Decimal(curr_json['quantity_available'])
 
-                    if include_held and (include_zero or amt > 0):
+                    if include_held:
                         amt += Decimal(curr_json['quantity_held_for_buy'])
                         amt += Decimal(curr_json['quantity_held_for_sell'])
 
-                    my_assets[curr] = amt
+                    if include_zero or amt > 0:
+                        my_assets[curr] = amt
 
         return my_assets
 
