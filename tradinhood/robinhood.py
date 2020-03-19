@@ -23,7 +23,8 @@ ENDPOINTS = {
     'nummus_accounts': 'https://nummus.robinhood.com/accounts/',
     'nummus_historicals': 'https://api.robinhood.com/marketdata/forex/historicals/',
     'forex_market_quote': 'https://api.robinhood.com/marketdata/forex/quotes/',
-    'tags': 'https://api.robinhood.com/midlands/tags/tag/'
+    'tags': 'https://api.robinhood.com/midlands/tags/tag/',
+    'ratings': 'https://api.robinhood.com/midlands/ratings/'
 }
 
 
@@ -779,6 +780,44 @@ class Stock:
     def bid(self):
         """Current bid price"""
         return Decimal(self.current_quote['bid_price'])
+
+    @property
+    def popularity(self):
+        """Get the number of open positions by Robinhood users"""
+        try:
+            res = self.session.get(self.instrument_url + 'popularity/')
+            res.raise_for_status()
+            return Decimal(res.json()['num_open_positions'])
+        except Exception:
+            raise APIError('Unable to access popularity data')
+
+    @property
+    def ratings(self):
+        """Get the overall buy/sell/hold ratings for this stock"""
+        try:
+            res = self.session.get(ENDPOINTS['ratings'] + self.id + '/')
+            res.raise_for_status()
+            resp_json = res.json()
+            summary = dict(
+                buy=resp_json['summary']['num_buy_ratings'],
+                hold=resp_json['summary']['num_hold_ratings'],
+                sell=resp_json['summary']['num_sell_ratings'],
+                published=resp_json['ratings_published_at']
+            )
+            ratings_cnt = summary['buy'] + summary['hold'] + summary['sell']
+            summary.update(dict(
+                ratings_cnt=ratings_cnt, 
+                buy_percent=summary['buy'] / ratings_cnt * 100,
+                hold_percent=summary['hold'] / ratings_cnt * 100,
+                sell_percent=summary['sell'] / ratings_cnt * 100
+            ))
+            ratings = [
+                dict(text=rate_json['text'], rating=rate_json['text'], published=rate_json['published_at']) 
+                for rate_json in resp_json['ratings']
+            ]
+            return summary, ratings
+        except Exception:
+            raise APIError('Unable to access popularity data')
 
     def __hash__(self):
         return hash(self.type + self.symbol)

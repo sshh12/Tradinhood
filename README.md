@@ -47,6 +47,8 @@ print('Sold abt $', money_gained, 'of AAPL')
 rbh.buy(dogecoin, money_gained / dogecoin.price, type='limit', price=Decimal('0.0001'))
 
 # Need more doge
+print(dogecoin.popularity)
+print(dogecoin.ratings)
 rbh.buy(dogecoin, rbh.buying_power / dogecoin.price, type='market')
 
 # Savor your abundant wealth

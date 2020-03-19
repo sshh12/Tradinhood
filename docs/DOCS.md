@@ -455,6 +455,14 @@ Current ask price
 ```
 Current bid price
 ```
+`Stock(...).popularity`
+```
+Get the number of open positions by Robinhood users
+```
+`Stock(...).ratings`
+```
+Get the overall buy/sell/hold ratings for this stock
+```
 ### Order
 `Order`
 ```
