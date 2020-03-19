@@ -22,7 +22,8 @@ ENDPOINTS = {
     'currency_pairs': 'https://nummus.robinhood.com/currency_pairs/',
     'nummus_accounts': 'https://nummus.robinhood.com/accounts/',
     'nummus_historicals': 'https://api.robinhood.com/marketdata/forex/historicals/',
-    'forex_market_quote': 'https://api.robinhood.com/marketdata/forex/quotes/'
+    'forex_market_quote': 'https://api.robinhood.com/marketdata/forex/quotes/',
+    'tags': 'https://api.robinhood.com/midlands/tags/tag/'
 }
 
 
@@ -590,6 +591,27 @@ class Robinhood:
     def unsettled_funds(self):
         """Unsettled funds"""
         return Decimal(self.account_info['unsettled_funds'])
+
+    def get_stocks_by_tag(self, tag):
+        """Get stock list by tag
+        
+        Args:
+            tag: (str) The tag to use (exs. top-movers, 100-most-popular)
+        
+        Returns:
+            (tuple str, list<Stock>) The name and list of stocks
+        """
+        assert self.logged_in
+
+        try:
+            res = self.session.get(ENDPOINTS['tags'] + tag + '/')
+            res.raise_for_status()
+            resp_json = res.json()
+            name = resp_json['name']
+            stocks = [Stock.from_url(self.session, url) for url in resp_json['instruments']]
+            return (name, stocks)
+        except Exception:
+            raise APIError('Unable to download stock list')
 
 
 class Currency:

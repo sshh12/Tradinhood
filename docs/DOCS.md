@@ -361,6 +361,16 @@ Buying power
 ```
 Unsettled funds
 ```
+`Robinhood(...).get_stocks_by_tag(self, tag)`
+```
+Get stock list by tag
+
+Args:
+    tag: (str) The tag to use (exs. top-movers, 100-most-popular)
+
+Returns:
+    (tuple str, list<Stock>) The name and list of stocks
+```
 ### Currency
 `Currency`
 ```

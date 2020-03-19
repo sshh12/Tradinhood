@@ -59,6 +59,9 @@ for order in rbh.orders:
     if order.state == 'confirmed' and order.asset_type == 'cryptocurrency':
         order.cancel()
         rbh.wait_for_orders([order]) # wait for cancel
+
+# also
+_, movers = rbh.get_stocks_by_tag('top-movers')
 ```
 
 ## Dataset
