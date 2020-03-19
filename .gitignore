@@ -109,3 +109,5 @@ tests.py
 *.code-workspace
 .vscode/*
 .vs/*
+temp.py
+robinhood-login

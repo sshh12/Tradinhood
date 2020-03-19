@@ -19,8 +19,12 @@ from decimal import Decimal
 rbh = Robinhood()
 
 rbh.login(username="l33tTrader", password="pa5s0rd")
+rbh.save_login()
 # or
 rbh.login(token="sPP80a1qYJPdiUdq.fqhQq4yLaH8QIxKqG8eni759DfdZOi2BTZcnbnCB...")
+rbh.save_login()
+# or
+rbh.load_login()
 
 # Use rbh[...] to retrieve stocks and currencies
 dogecoin = rbh['DOGE']

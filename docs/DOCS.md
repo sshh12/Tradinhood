@@ -224,6 +224,14 @@ Returns:
 Raises:
     APIError: If login fails
 ```
+`Robinhood(...).save_login(self, fn='robinhood-login')`
+```
+Save login to file
+```
+`Robinhood(...).load_login(self, fn='robinhood-login')`
+```
+Login from file
+```
 `Robinhood(...).__getitem__(self, symbol)`
 ```
 Access items using robinhood[symbol]

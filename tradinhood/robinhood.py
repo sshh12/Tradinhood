@@ -213,6 +213,17 @@ class Robinhood:
 
         return False
 
+    def save_login(self, fn='robinhood-login'):
+        """Save login to file"""
+        with open(fn, 'w') as save_fp:
+            save_fp.write(self.token)
+
+    def load_login(self, fn='robinhood-login'):
+        """Login from file"""
+        with open(fn, 'r') as save_fp:
+            token = save_fp.read()
+        self.login(token=token)
+
     def __repr__(self):
         return '<Robinhood [Account: {}]>'.format(self.acc_num)
 
