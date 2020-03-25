@@ -112,7 +112,7 @@ Backtester Usage:
 import matplotlib.pyplot as plt
 import random
 
-from Tradinhood import Dataset, Backtester
+from tradinhood import Dataset, Backtester
 
 dataset = Dataset.from_file('bitcoin-historical.pkl') # see dataset example
 
@@ -151,7 +151,7 @@ df = algo.log_as_dataframe()
 RobinhoodLive Usage:
 
 ```python
-from Tradinhood import RobinhoodLive
+from tradinhood import RobinhoodLive
 
 rbh = Robinhood()
 rbh.login(username="l33tTrader", password="pa5s0rd") # see robinhood usage

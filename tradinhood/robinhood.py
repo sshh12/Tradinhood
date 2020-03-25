@@ -589,6 +589,11 @@ class Robinhood:
         return Decimal(self.account_info['buying_power'])
 
     @property
+    def cash(self):
+        """Cash"""
+        return Decimal(self.account_info['cash'])
+
+    @property
     def unsettled_funds(self):
         """Unsettled funds"""
         return Decimal(self.account_info['unsettled_funds'])
