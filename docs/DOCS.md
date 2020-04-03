@@ -357,6 +357,10 @@ Cash that can be withdrawn
 ```
 Buying power
 ```
+`Robinhood(...).cash`
+```
+Cash
+```
 `Robinhood(...).unsettled_funds`
 ```
 Unsettled funds
@@ -370,6 +374,19 @@ Args:
 
 Returns:
     (tuple str, list<Stock>) The name and list of stocks
+```
+`Robinhood(...).history(self, bounds='trading', interval='5minute', span='day', account_id=None)`
+```
+Get portfolio value history
+
+Args:
+    bounds: (str) The bounds for the returned price data
+    interval: (str) The resolution of the data
+    span: (str) The span of time to get data for
+    account_id: (str, optional) The account id of the portfolio
+
+Returns:
+    (dict) Portfolio price data
 ```
 ### Currency
 `Currency`

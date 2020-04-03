@@ -22,6 +22,7 @@ ENDPOINTS = {
     'currency_pairs': 'https://nummus.robinhood.com/currency_pairs/',
     'nummus_accounts': 'https://nummus.robinhood.com/accounts/',
     'nummus_historicals': 'https://api.robinhood.com/marketdata/forex/historicals/',
+    'port_historicals': 'https://api.robinhood.com/portfolios/historicals/',
     'forex_market_quote': 'https://api.robinhood.com/marketdata/forex/quotes/',
     'tags': 'https://api.robinhood.com/midlands/tags/tag/',
     'ratings': 'https://api.robinhood.com/midlands/ratings/'
@@ -618,6 +619,32 @@ class Robinhood:
             return (name, stocks)
         except Exception:
             raise APIError('Unable to download stock list')
+
+    def history(self, bounds='trading', interval='5minute', span='day', account_id=None):
+        """Get portfolio value history
+        
+        Args:
+            bounds: (str) The bounds for the returned price data
+            interval: (str) The resolution of the data
+            span: (str) The span of time to get data for
+            account_id: (str, optional) The account id of the portfolio
+        
+        Returns:
+            (dict) Portfolio price data
+        """
+        assert self.logged_in
+        if account_id is None:
+            account_id = self.acc_num
+
+        try:
+            url = ENDPOINTS['port_historicals'] \
+                + '{0}/?account={0}&bounds={1}&interval={2}&span={3}'\
+                    .format(account_id, bounds, interval, span)
+            res = self.session.get(url)
+            res.raise_for_status()
+            return res.json()
+        except Exception:
+            raise APIError('Unable to download portfolio history')
 
 
 class Currency:
