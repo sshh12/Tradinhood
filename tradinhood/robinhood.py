@@ -769,6 +769,38 @@ class Stock:
 
         return Stock(session, session.get(instrument_url).json())
 
+    @classmethod
+    def get_bulk_prices(self, stocks, bounds='trading', include_inactive=True):
+        """Get the prices of multiple stocks at the same time
+
+        Args:
+            stocks: (list<Stock>) Stocks to find prices for
+            bounds: (str) The bounds for the returned price data
+            include_inactive: (str) Include inactive stocks
+        
+        Returns:
+            (dict) Portfolio price data
+        """
+        assert len(stocks) > 0
+        instrument_urls = ','.join([stock.instrument_url for stock in stocks])
+        session = stocks[0].session
+        try:
+            res = session.get(ENDPOINTS['quotes'] + 
+                '?bounds={}&include_inactive={}&instruments={}'\
+                    .format(bounds, str(include_inactive).lower(), instrument_urls))
+            results = res.json()['results']
+            prices = {}
+            for stock in stocks:
+                price_data = None
+                for item in results:
+                    if item['symbol'] == stock.symbol:
+                        price_data = item
+                        break
+                prices[stock] = price_data
+            return prices
+        except Exception:
+            raise APIError('Unable to access price data')
+
     def history(self, bounds='regular', interval='day', span='year'):
         """Retrieve the price history of this stock"""
         try:
