@@ -15,9 +15,13 @@ ENDPOINTS = {
     'accounts': 'https://api.robinhood.com/accounts/',
     'quotes': 'https://api.robinhood.com/quotes/',
     'orders': 'https://api.robinhood.com/orders/',
+    'news': 'https://api.robinhood.com/midlands/news/',
     'holdings': 'https://nummus.robinhood.com/holdings/',
+    'fundamentals': 'https://api.robinhood.com/marketdata/fundamentals/',
     'instruments': 'https://api.robinhood.com/instruments/',
     'historicals': 'https://api.robinhood.com/marketdata/historicals/',
+    'earnings': 'https://api.robinhood.com/marketdata/earnings/',
+    'instruments_similar': 'https://dora.robinhood.com/instruments/similar/',
     'nummus_orders': 'https://nummus.robinhood.com/orders/',
     'currency_pairs': 'https://nummus.robinhood.com/currency_pairs/',
     'nummus_accounts': 'https://nummus.robinhood.com/accounts/',
@@ -25,7 +29,8 @@ ENDPOINTS = {
     'port_historicals': 'https://api.robinhood.com/portfolios/historicals/',
     'forex_market_quote': 'https://api.robinhood.com/marketdata/forex/quotes/',
     'tags': 'https://api.robinhood.com/midlands/tags/tag/',
-    'ratings': 'https://api.robinhood.com/midlands/ratings/'
+    'ratings': 'https://api.robinhood.com/midlands/ratings/',
+    'unified': 'https://phoenix.robinhood.com/accounts/unified'
 }
 
 
@@ -646,6 +651,46 @@ class Robinhood:
         except Exception:
             raise APIError('Unable to download portfolio history')
 
+    @property
+    def unified_data(self):
+        """Get the unified data of the account"""
+        try:
+            res = self.session.get(ENDPOINTS['unified'])
+            res.raise_for_status()
+            return res.json()
+        except Exception:
+            raise APIError('Unable to access unified data')
+
+    def get_bulk_stock_prices(self, stocks, bounds='trading', include_inactive=True):
+        """Get the prices of multiple stocks at the same time
+
+        Args:
+            stocks: (list<Stock>) Stocks to find prices for
+            bounds: (str) The bounds for the returned price data
+            include_inactive: (str) Include inactive stocks
+        
+        Returns:
+            (dict) Portfolio price data
+        """
+        assert len(stocks) > 0
+        instrument_urls = ','.join([stock.instrument_url for stock in stocks])
+        try:
+            res = self.session.get(ENDPOINTS['quotes'] + 
+                '?bounds={}&include_inactive={}&instruments={}'\
+                    .format(bounds, str(include_inactive).lower(), instrument_urls))
+            results = res.json()['results']
+            prices = {}
+            for stock in stocks:
+                stock_data = None
+                for item in results:
+                    if item['symbol'] == stock.symbol:
+                        stock_data = item
+                        break
+                prices[stock] = stock_data
+            return prices
+        except Exception:
+            raise APIError('Unable to access price data')
+
 
 class Currency:
     """Currency asset object
@@ -770,36 +815,9 @@ class Stock:
         return Stock(session, session.get(instrument_url).json())
 
     @classmethod
-    def get_bulk_prices(self, stocks, bounds='trading', include_inactive=True):
-        """Get the prices of multiple stocks at the same time
-
-        Args:
-            stocks: (list<Stock>) Stocks to find prices for
-            bounds: (str) The bounds for the returned price data
-            include_inactive: (str) Include inactive stocks
-        
-        Returns:
-            (dict) Portfolio price data
-        """
-        assert len(stocks) > 0
-        instrument_urls = ','.join([stock.instrument_url for stock in stocks])
-        session = stocks[0].session
-        try:
-            res = session.get(ENDPOINTS['quotes'] + 
-                '?bounds={}&include_inactive={}&instruments={}'\
-                    .format(bounds, str(include_inactive).lower(), instrument_urls))
-            results = res.json()['results']
-            prices = {}
-            for stock in stocks:
-                price_data = None
-                for item in results:
-                    if item['symbol'] == stock.symbol:
-                        price_data = item
-                        break
-                prices[stock] = price_data
-            return prices
-        except Exception:
-            raise APIError('Unable to access price data')
+    def from_id(self, session, id_):
+        """Create a stock from its instrument id"""
+        return Stock.from_url(session, ENDPOINTS['instruments'] + id_ + '/')
 
     def history(self, bounds='regular', interval='day', span='year'):
         """Retrieve the price history of this stock"""
@@ -854,6 +872,57 @@ class Stock:
             return Decimal(res.json()['num_open_positions'])
         except Exception:
             raise APIError('Unable to access popularity data')
+
+    @property
+    def earnings(self):
+        """Get the earnings history and estimates"""
+        try:
+            res = self.session.get(ENDPOINTS['earnings'] + 
+                '?instrument=/instruments/' + self.id + '/')
+            res.raise_for_status()
+            results = res.json()['results']
+            earnings = []
+            for item in results:
+                earning = {}
+                for key in ['year', 'quarter', 'eps', 'report', 'call']:
+                    earning[key] = item[key]
+                earnings.append(earning)
+            return earnings
+        except Exception:
+            raise APIError('Unable to access earnings data')
+
+    @property
+    def fundamentals(self):
+        """Ges"""
+        try:
+            res = self.session.get(ENDPOINTS['fundamentals'] + 
+                self.id + '/?include_inactive=true')
+            res.raise_for_status()
+            return res.json()
+        except Exception:
+            raise APIError('Unable to get fundamentals')
+
+    def get_similar(self):
+        """Get similar stocks"""
+        try:
+            res = self.session.get(ENDPOINTS['instruments_similar'] + self.id + '/')
+            res.raise_for_status()
+            results = res.json()['similar']
+            stocks = []
+            for item in results:
+                stocks.append(Stock.from_id(self.session, item['instrument_id']))
+            return stocks
+        except Exception:
+            raise APIError('Unable to find similar stocks')
+
+    def get_news(self):
+        """Get news for this stock"""
+        try:
+            res = self.session.get(ENDPOINTS['news'] + self.symbol + '/?')
+            res.raise_for_status()
+            return res.json()['results']
+        except Exception:
+            raise APIError('Unable to find news')
 
     @property
     def ratings(self):

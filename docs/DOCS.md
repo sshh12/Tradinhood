@@ -388,6 +388,22 @@ Args:
 Returns:
     (dict) Portfolio price data
 ```
+`Robinhood(...).unified_data`
+```
+Get the unified data of the account
+```
+`Robinhood(...).get_bulk_stock_prices(self, stocks, bounds='trading', include_inactive=True)`
+```
+Get the prices of multiple stocks at the same time
+
+Args:
+    stocks: (list<Stock>) Stocks to find prices for
+    bounds: (str) The bounds for the returned price data
+    include_inactive: (str) Include inactive stocks
+
+Returns:
+    (dict) Portfolio price data
+```
 ### Currency
 `Currency`
 ```
@@ -448,17 +464,9 @@ Attributes:
 ```
 Create a stock from its instrument url
 ```
-`Stock(...).get_bulk_prices(self, stocks, bounds='trading', include_inactive=True)`
+`Stock.from_id(self, session, id_)`
 ```
-Get the prices of multiple stocks at the same time
-
-Args:
-    stocks: (list<Stock>) Stocks to find prices for
-    bounds: (str) The bounds for the returned price data
-    include_inactive: (str) Include inactive stocks
-
-Returns:
-    (dict) Portfolio price data
+Create a stock from its instrument id
 ```
 `Stock(...).history(self, bounds='regular', interval='day', span='year')`
 ```
@@ -487,6 +495,22 @@ Current bid price
 `Stock(...).popularity`
 ```
 Get the number of open positions by Robinhood users
+```
+`Stock(...).earnings`
+```
+Get the earnings history and estimates
+```
+`Stock(...).fundamentals`
+```
+Ges
+```
+`Stock(...).get_similar`
+```
+Get similar stocks
+```
+`Stock(...).get_news`
+```
+Get news for this stock
 ```
 `Stock(...).ratings`
 ```
