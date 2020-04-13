@@ -392,7 +392,7 @@ Returns:
 ```
 Get the unified data of the account
 ```
-`Robinhood(...).get_bulk_stock_prices(self, stocks, bounds='trading', include_inactive=True)`
+`Robinhood(...).get_bulk_prices(self, stocks, bounds='trading', include_inactive=True)`
 ```
 Get the prices of multiple stocks at the same time
 
@@ -402,7 +402,27 @@ Args:
     include_inactive: (str) Include inactive stocks
 
 Returns:
-    (dict) Portfolio price data
+    (dict) Price data
+```
+`Robinhood(...).get_bulk_popularity(self, stocks)`
+```
+Get the popularity of multiple stocks at the same time
+
+Args:
+    stocks: (list<Stock>) Stocks to find popularity for
+
+Returns:
+    (dict) Popularity data
+```
+`Robinhood(...).get_bulk_ratings(self, stocks)`
+```
+Get the ratings of multiple stocks at the same time
+
+Args:
+    stocks: (list<Stock>) Stocks to find ratings for
+
+Returns:
+    (dict) Ratings data
 ```
 ### Currency
 `Currency`

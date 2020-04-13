@@ -70,6 +70,7 @@ for order in rbh.orders:
 
 # also
 _, movers = rbh.get_stocks_by_tag('top-movers')
+print(rbh.get_bulk_popularity(movers))
 
 # See how you've gained/lost money over time
 print(rbh.history())

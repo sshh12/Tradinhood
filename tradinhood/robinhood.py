@@ -30,7 +30,9 @@ ENDPOINTS = {
     'forex_market_quote': 'https://api.robinhood.com/marketdata/forex/quotes/',
     'tags': 'https://api.robinhood.com/midlands/tags/tag/',
     'ratings': 'https://api.robinhood.com/midlands/ratings/',
-    'unified': 'https://phoenix.robinhood.com/accounts/unified'
+    'unified': 'https://phoenix.robinhood.com/accounts/unified',
+    'popularity': 'https://api.robinhood.com/instruments/popularity/',
+    'ratings': 'https://api.robinhood.com/midlands/ratings/'
 }
 
 
@@ -661,7 +663,7 @@ class Robinhood:
         except Exception:
             raise APIError('Unable to access unified data')
 
-    def get_bulk_stock_prices(self, stocks, bounds='trading', include_inactive=True):
+    def get_bulk_prices(self, stocks, bounds='trading', include_inactive=True):
         """Get the prices of multiple stocks at the same time
 
         Args:
@@ -670,7 +672,7 @@ class Robinhood:
             include_inactive: (str) Include inactive stocks
         
         Returns:
-            (dict) Portfolio price data
+            (dict) Price data
         """
         assert len(stocks) > 0
         instrument_urls = ','.join([stock.instrument_url for stock in stocks])
@@ -690,6 +692,60 @@ class Robinhood:
             return prices
         except Exception:
             raise APIError('Unable to access price data')
+
+    def get_bulk_popularity(self, stocks):
+        """Get the popularity of multiple stocks at the same time
+
+        Args:
+            stocks: (list<Stock>) Stocks to find popularity for
+        
+        Returns:
+            (dict) Popularity data
+        """
+        assert len(stocks) > 0
+        instrument_ids = ','.join([stock.id for stock in stocks])
+        try:
+            res = self.session.get(ENDPOINTS['popularity'] + 
+                '?ids={}'.format(instrument_ids))
+            results = res.json()['results']
+            pop = {}
+            for item in results:
+                item_stock = None
+                for stock in stocks:
+                    if item['instrument'] == stock.instrument_url:
+                        item_stock = stock
+                        break
+                pop[item_stock] = item['num_open_positions']
+            return pop
+        except Exception:
+            raise APIError('Unable to access popularity data')
+
+    def get_bulk_ratings(self, stocks):
+        """Get the ratings of multiple stocks at the same time
+
+        Args:
+            stocks: (list<Stock>) Stocks to find ratings for
+        
+        Returns:
+            (dict) Ratings data
+        """
+        assert len(stocks) > 0
+        instrument_ids = ','.join([stock.id for stock in stocks])
+        try:
+            res = self.session.get(ENDPOINTS['ratings'] + 
+                '?ids={}'.format(instrument_ids))
+            results = res.json()['results']
+            ratings = {}
+            for item in results:
+                item_stock = None
+                for stock in stocks:
+                    if item['instrument_id'] == stock.id:
+                        item_stock = stock
+                        break
+                ratings[item_stock] = item['summary']
+            return ratings
+        except Exception:
+            raise APIError('Unable to access ratings data')
 
 
 class Currency:
