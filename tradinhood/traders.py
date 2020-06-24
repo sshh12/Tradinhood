@@ -22,7 +22,7 @@ class BaseTrader:
 
         Only symbols required, the rest of init is done with .start(...)
         """
-        assert len(symbols) > 0 # you have to be trading something...
+        assert len(symbols) > 0  # you have to be trading something...
 
         self.log = defaultdict(list)
         self.symbols = symbols
@@ -33,7 +33,7 @@ class BaseTrader:
         This is an internal method used by classes which implement BaseTraderself.
         Do not call with algorithm.
         """
-        ## Pre
+        # Pre
         self.log['datetime'].append(current_date)
         self.log['start_cash'].append(self.cash)
         self.log['start_portfolio_value'].append(self.portfolio_value)
@@ -42,10 +42,10 @@ class BaseTrader:
             self.log['start_owned_' + symbol].append(self.quantity(symbol))
             self.log['start_price_' + symbol].append(self.price(symbol))
 
-        ## Execute
+        # Execute
         self.loop(current_date, *args, **kwargs)
 
-        ## Post
+        # Post
         self.log['end_cash'].append(self.cash)
         self.log['end_portfolio_value'].append(self.portfolio_value)
 
@@ -62,7 +62,8 @@ class BaseTrader:
         df = pd.DataFrame.from_dict(self.log).set_index('datetime')
         df.index = pd.to_datetime(df.index)
 
-        numeric_cols = ['start_cash', 'end_cash', 'start_portfolio_value', 'end_portfolio_value']
+        numeric_cols = ['start_cash', 'end_cash',
+                        'start_portfolio_value', 'end_portfolio_value']
         for symbol in self.symbols:
             numeric_cols.append('start_owned_' + symbol)
         df[numeric_cols] = df[numeric_cols].apply(pd.to_numeric)
@@ -182,6 +183,7 @@ class Backtester(BaseTrader):
         dataset: (Dataset) the dataset used
         steps: (list: str) the timestamps covered by the dataset
     """
+
     def start(self, dataset, cash=10000, start_idx=50):
         """Start the backtesting
 
@@ -265,6 +267,7 @@ class Robinhood(BaseTrader):
         rbh: (Robinhood*) a robinhood client
         resolution: (str) the trade resolution/frequency
     """
+
     def start(self, robinhood, resolution='1d', until=None):
         """Starts live trading
 
@@ -292,7 +295,8 @@ class Robinhood(BaseTrader):
 
             self._step(timestamp)
 
-            date_end = date_start + timedelta(seconds=RESOLUTIONS[self.resolution])
+            date_end = date_start + \
+                timedelta(seconds=RESOLUTIONS[self.resolution])
             wait_time = (date_end - datetime.now()).total_seconds()
 
             if wait_time <= 0:
@@ -324,7 +328,7 @@ class Robinhood(BaseTrader):
         return self.rbh[symbol].price
 
     def history(self, symbol, steps):
-        return [] # TODO
+        return []  # TODO
 
     def buy(self, symbol, amt, wait=True, **kwargs):
         """Buy stock/currency
@@ -338,7 +342,8 @@ class Robinhood(BaseTrader):
         """
         order = self.rbh.buy(self.rbh[symbol], amt, **kwargs)
         if wait:
-            self.rbh.wait_for_orders([order], delay=5, timeout=RESOLUTIONS[self.resolution], force=True)
+            self.rbh.wait_for_orders(
+                [order], delay=5, timeout=RESOLUTIONS[self.resolution], force=True)
         return order
 
     def sell(self, symbol, amt, wait=True, **kwargs):
@@ -353,5 +358,6 @@ class Robinhood(BaseTrader):
         """
         order = self.rbh.sell(self.rbh[symbol], amt, **kwargs)
         if wait:
-            self.rbh.wait_for_orders([order], delay=5, timeout=RESOLUTIONS[self.resolution], force=True)
+            self.rbh.wait_for_orders(
+                [order], delay=5, timeout=RESOLUTIONS[self.resolution], force=True)
         return order

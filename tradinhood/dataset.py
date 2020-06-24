@@ -9,7 +9,7 @@ import pickle
 from .robinhood import Stock, Currency
 
 
-RESOLUTIONS = { # The possible dataset resolutions (e.i. every min, every day, etc)
+RESOLUTIONS = {  # The possible dataset resolutions (e.i. every min, every day, etc)
     '15s': 15,
     '1m': 60,
     '5m': 60 * 5,
@@ -36,6 +36,7 @@ class OHLCV:
         close: (float)
         volume: (float)
     """
+
     def __init__(self, open_, high, low, close, volume):
         self.open = float(open_)
         self.high = float(high)
@@ -64,8 +65,8 @@ class Dataset:
         self.resolution = resolution
         self.symbols = symbols
 
-    @classmethod
-    def from_google(self, symbol, resolution='1d', period='20d', exchange='NASD'):
+    @staticmethod
+    def from_google(symbol, resolution='1d', period='20d', exchange='NASD'):
         """Fetch data from google
 
         Args:
@@ -88,7 +89,7 @@ class Dataset:
         res = requests.get(url).text
         lines = res.split('\n')[7:]
 
-        ref_date = None # Use a reference date to keep track of how google API gives time
+        ref_date = None  # Use a reference date to keep track of how google API gives time
         new_data = defaultdict(dict)
 
         for line in lines:
@@ -102,7 +103,8 @@ class Dataset:
                 date = int(date[1:])
                 ref_date = date
             else:
-                date = ref_date + interval * int(date) # b/c date can just be an int if intervals since ref_date
+                # b/c date can just be an int if intervals since ref_date
+                date = ref_date + interval * int(date)
 
             timestamp = datetime.fromtimestamp(date).isoformat()
 
@@ -113,8 +115,8 @@ class Dataset:
 
         return Dataset(new_data, resolution, [symbol])
 
-    @classmethod
-    def from_alphavantage(self, symbol, resolution='1d', api_key='demo'):
+    @staticmethod
+    def from_alphavantage(symbol, resolution='1d', api_key='demo'):
         """Fetch data from AlphaVantage
 
         Args:
@@ -126,7 +128,8 @@ class Dataset:
         """
         assert resolution in ['1d', '5m']
 
-        url = 'https://www.alphavantage.co/query?outputsize=full&symbol={}&apikey={}'.format(symbol, api_key)
+        url = 'https://www.alphavantage.co/query?outputsize=full&symbol={}&apikey={}'.format(
+            symbol, api_key)
         if resolution == '1d':
             url += '&function=TIME_SERIES_DAILY'
             data_key = 'Time Series (Daily)'
@@ -144,10 +147,10 @@ class Dataset:
             date = datetime.strptime(timestamp, time_format)
             tick_data = res[data_key][timestamp]
             price_data = OHLCV(
-                tick_data['1. open'], 
-                tick_data['2. high'], 
-                tick_data['3. low'], 
-                tick_data['4. close'], 
+                tick_data['1. open'],
+                tick_data['2. high'],
+                tick_data['3. low'],
+                tick_data['4. close'],
                 tick_data['5. volume']
             )
             new_data[date][symbol] = price_data
@@ -157,8 +160,8 @@ class Dataset:
 
         return Dataset(new_data, resolution, [symbol])
 
-    @classmethod
-    def from_cryptocompare(self, symbol, resolution='1d', to_symbol='USD', limit=3000, last_unix_time=None):
+    @staticmethod
+    def from_cryptocompare(symbol, resolution='1d', to_symbol='USD', limit=3000, last_unix_time=None):
         """Fetch data from cryptocompare
 
         Args:
@@ -195,15 +198,16 @@ class Dataset:
             volume = data['volumefrom']
             timestamp = datetime.fromtimestamp(data['time']).isoformat()
 
-            new_data[timestamp][symbol] = OHLCV(open_, high, low, close, volume)
+            new_data[timestamp][symbol] = OHLCV(
+                open_, high, low, close, volume)
 
         if len(new_data) == 0:
             raise DatasetException('No data')
 
         return Dataset(new_data, resolution, [symbol])
 
-    @classmethod
-    def from_robinhood(self, asset, resolution='1d'):
+    @staticmethod
+    def from_robinhood(asset, resolution='1d'):
         """Fetch data from Robinhood
 
         Args:
@@ -233,15 +237,17 @@ class Dataset:
                 date = frame['begins_at']
                 timestamp = datetime.strptime(date, "%Y-%m-%dT%H:%M:%SZ").replace(
                     tzinfo=timezone(timedelta(0)))
-                new_data[timestamp][asset.code] = OHLCV(open_, high, low, close, volume)
+                new_data[timestamp][asset.code] = OHLCV(
+                    open_, high, low, close, volume)
 
             return Dataset(new_data, resolution, [asset.code])
 
         else:
-            raise DatasetException('Invalid asset provided, use robinhood[...].')
+            raise DatasetException(
+                'Invalid asset provided, use robinhood[...].')
 
-    @classmethod
-    def from_file(self, filename):
+    @staticmethod
+    def from_file(filename):
         """Load from file
 
         Args:
@@ -253,7 +259,8 @@ class Dataset:
         try:
             with open(filename, 'rb') as f:
                 dataset = pickle.load(f)
-            return Dataset(dataset.data, dataset.resolution, dataset.symbols) # Cloning params into new dataset for compatibility
+            # Cloning params into new dataset for compatibility
+            return Dataset(dataset.data, dataset.resolution, dataset.symbols)
         except Exception:
             raise DatasetException('Could not load file ' + filename)
 
@@ -302,8 +309,8 @@ class Dataset:
 
         for symbol in symbols:
 
-            init_close = self.data[data['datetime'][0]][symbol].close # first close price
-            prev_close = init_close # previous price
+            init_close = self.data[data['datetime'][0]][symbol].close  # first close price
+            prev_close = init_close  # previous price
 
             for timestamp in data['datetime']:
                 price_data = self.data[timestamp][symbol]
@@ -335,9 +342,11 @@ class Dataset:
         if not symbols:
             symbols = self.symbols
 
-        filter_ = [col + '_' + symbol for col in columns for symbol in symbols] # every column with every symbol
+        # every column with every symbol
+        filter_ = [col + '_' + symbol for col in columns for symbol in symbols]
 
-        df = self.as_dataframe(symbols)[filter_].plot(ax=ax, title=str(self)) # dataset -> dataframe -> filter cols -> plot
+        # dataset -> dataframe -> filter cols -> plot
+        df = self.as_dataframe(symbols)[filter_].plot(ax=ax, title=str(self))
 
         if show:
             plt.show()
@@ -355,13 +364,14 @@ class Dataset:
     def __ior__(self, other):
         """Use |= to combine datasets"""
         assert isinstance(other, Dataset)
-        assert self.resolution == other.resolution # ensure datasets have the same resolution before trying to join them
+        # ensure datasets have the same resolution before trying to join them
+        assert self.resolution == other.resolution
 
         for time in other.data:
             for symbol in other.data[time]:
                 self.data[time][symbol] = other.data[time][symbol]
 
         self.symbols.extend(other.symbols)
-        self.symbols = list(set(self.symbols)) # ensure unique
+        self.symbols = list(set(self.symbols))  # ensure unique
 
         return self

@@ -107,7 +107,5 @@ venv.bak/
 *.pkl
 tests.py
 *.code-workspace
-.vscode/*
-.vs/*
 temp.py
 robinhood-login

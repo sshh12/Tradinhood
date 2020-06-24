@@ -36,7 +36,7 @@ ENDPOINTS = {
 }
 
 
-API_HEADERS = { # Default header params
+API_HEADERS = {  # Default header params
     'Accept': '*/*',
     'Connection': 'keep-alive',
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/67.0.3396.99 Safari/537.36',
@@ -90,7 +90,8 @@ class Robinhood:
 
     def _load(self):
         """Inits basic internal information"""
-        asset_currs = self.session.get(ENDPOINTS['currency_pairs']).json()['results']
+        asset_currs = self.session.get(
+            ENDPOINTS['currency_pairs']).json()['results']
 
         for curr_json in asset_currs:
 
@@ -111,7 +112,8 @@ class Robinhood:
         try:
 
             if not acc_num:
-                res_json = self.session.get(ENDPOINTS['accounts']).json()['results']
+                res_json = self.session.get(
+                    ENDPOINTS['accounts']).json()['results']
                 if len(res_json) == 0:
                     raise APIError('No robinhood accounts found. ' +
                                    'You may still be in the process of being verified.')
@@ -122,7 +124,8 @@ class Robinhood:
             self.account_url = ENDPOINTS['accounts'] + self.acc_num + '/'
 
             if not nummus_id:
-                res_nummus_json = self.session.get(ENDPOINTS['nummus_accounts']).json()['results']
+                res_nummus_json = self.session.get(
+                    ENDPOINTS['nummus_accounts']).json()['results']
                 if len(res_nummus_json) == 0:
                     raise APIError('No robinhood crypto accounts found. ' +
                                    'Try buying some online to get this part of your account activated.')
@@ -152,14 +155,14 @@ class Robinhood:
         Raises:
             APIError: If login fails
         """
-        if token: # Skip login
+        if token:  # Skip login
             self.token = token
             self.session.headers['Authorization'] = 'Bearer ' + self.token
             self.logged_in = True
             self._load_auth(acc_num)
             return True
 
-        if not username or not password: # If not provided, manually prompt
+        if not username or not password:  # If not provided, manually prompt
             import getpass
             username = input('Username: ')
             password = getpass.getpass('Password (Hidden): ')
@@ -249,17 +252,18 @@ class Robinhood:
         Raises:
             APIError: If symbol cannot be associated with a stock or currency
         """
-        if symbol in Currency.cache: # check caches first
+        if symbol in Currency.cache:  # check caches first
             return Currency.cache[symbol]
 
-        if symbol in Stock.cache: # check caches first
+        if symbol in Stock.cache:  # check caches first
             return Stock.cache[symbol]
 
         try:
 
-            assert self.logged_in # instruments endpoint requires auth
+            assert self.logged_in  # instruments endpoint requires auth
 
-            res = self.session.get(ENDPOINTS['instruments'] + '?active_instruments_only=false&symbol=' + symbol)
+            res = self.session.get(
+                ENDPOINTS['instruments'] + '?active_instruments_only=false&symbol=' + symbol)
             res.raise_for_status()
             results = res.json()['results']
 
@@ -284,19 +288,22 @@ class Robinhood:
         """
         assert self.logged_in
 
-        if isinstance(asset, str): # convert str to Stock or Currency
+        if isinstance(asset, str):  # convert str to Stock or Currency
             asset = self.__getitem__(asset)
 
         if isinstance(asset, Currency):
-            assets = self.get_assets(include_positions=False, include_holdings=True, include_held=include_held)
+            assets = self.get_assets(
+                include_positions=False, include_holdings=True, include_held=include_held)
 
         elif isinstance(asset, Stock):
-            assets = self.get_assets(include_positions=True, include_holdings=False, include_held=include_held)
+            assets = self.get_assets(
+                include_positions=True, include_holdings=False, include_held=include_held)
 
         else:
             raise UsageError('Invalid asset type')
 
-        return assets.get(asset, Decimal('0.00')) # default to zero if not in positions or holdings
+        # default to zero if not in positions or holdings
+        return assets.get(asset, Decimal('0.00'))
 
     def _order(self, order_side, asset, amt, type='market', price=None, stop_price=None, time_in_force='gtc', return_json=False):
         """Internal order method
@@ -307,12 +314,12 @@ class Robinhood:
         assert order_side in ['buy', 'sell']
         assert time_in_force in ['gtc', 'gfd', 'ioc', 'opg']
 
-        if isinstance(asset, str): # convert str to asset
+        if isinstance(asset, str):  # convert str to asset
             asset = self.__getitem__(asset)
 
         assert asset.tradable
 
-        if not price: # if price not given just use current or last known price
+        if not price:  # if price not given just use current or last known price
             price = asset.price
 
         price = str(price)
@@ -331,7 +338,7 @@ class Robinhood:
                 'account_id': self.nummus_id,
                 'currency_pair_id': asset.pair_id,
                 'price': price,
-                'ref_id': str(uuid.uuid4()), # Generated temp id
+                'ref_id': str(uuid.uuid4()),  # Generated temp id
                 'time_in_force': time_in_force
             }
 
@@ -351,10 +358,11 @@ class Robinhood:
             assert type in ['market', 'limit', 'stoploss', 'stoplimit']
 
             # Convert types into correct parameters
-            order_type = 'market' if (type in ['market', 'stoploss']) else 'limit'
+            order_type = 'market' if (
+                type in ['market', 'stoploss']) else 'limit'
             trigger = 'immediate' if (type in ['market', 'limit']) else 'stop'
 
-            amt = str(round(amt, 0)) # Shares must be integers
+            amt = str(round(amt, 0))  # Shares must be integers
 
             if trigger == 'stop':
                 assert stop_price
@@ -372,8 +380,8 @@ class Robinhood:
                 'account': self.account_url,
                 'instrument': asset.instrument_url,
                 'symbol': asset.symbol,
-                'ref_id': str(uuid.uuid4()), # Generated temp id
-                'extended_hours': False # not sure what this is
+                'ref_id': str(uuid.uuid4()),  # Generated temp id
+                'extended_hours': False  # not sure what this is
             }
 
             if stop_price:
@@ -454,8 +462,10 @@ class Robinhood:
             if return_json:
                 return [json_stocks, json_crypto]
 
-            orders = [Order(self.session, json_data, 'stock') for json_data in json_stocks['results']]
-            orders += [Order(self.session, json_data, 'cryptocurrency') for json_data in json_crypto['results']]
+            orders = [Order(self.session, json_data, 'stock')
+                      for json_data in json_stocks['results']]
+            orders += [Order(self.session, json_data, 'cryptocurrency')
+                       for json_data in json_crypto['results']]
 
             if sort_by_time:
                 orders.sort(key=lambda o: o.created_at)
@@ -477,7 +487,8 @@ class Robinhood:
         Returns:
             (bool) if the orders where complete
         """
-        order_complete = lambda order: order.state in ['filled', 'cancelled']
+        def order_complete(order):
+            return order.state in ['filled', 'cancelled']
         checks = timeout // delay
 
         while not all(map(order_complete, orders)) and checks > 0:
@@ -487,7 +498,7 @@ class Robinhood:
         # cancel orders not completed
         if force:
             for order in orders:
-                if order.state in ['confirmed', 'queued']: 
+                if order.state in ['confirmed', 'queued']:
                     order.cancel()
 
         return all(map(order_complete, orders))
@@ -535,7 +546,7 @@ class Robinhood:
 
                 code = curr_json['currency']['code']
 
-                if code in Currency.cache: # all currencies already cached
+                if code in Currency.cache:  # all currencies already cached
 
                     curr = Currency.cache[code]
                     amt = Decimal(curr_json['quantity_available'])
@@ -580,11 +591,12 @@ class Robinhood:
         assert self.logged_in
 
         try:
-            res = self.session.get(ENDPOINTS['accounts'] + self.acc_num + '/positions/')
+            res = self.session.get(
+                ENDPOINTS['accounts'] + self.acc_num + '/positions/')
             res.raise_for_status()
             return res.json()['results']
         except Exception:
-            raise APIError('Unable to access holdings')
+            raise APIError('Unable to access positions')
 
     @property
     def withdrawable_cash(self):
@@ -608,10 +620,10 @@ class Robinhood:
 
     def get_stocks_by_tag(self, tag):
         """Get stock list by tag
-        
+
         Args:
             tag: (str) The tag to use (exs. top-movers, 100-most-popular)
-        
+
         Returns:
             (tuple str, list<Stock>) The name and list of stocks
         """
@@ -622,20 +634,21 @@ class Robinhood:
             res.raise_for_status()
             resp_json = res.json()
             name = resp_json['name']
-            stocks = [Stock.from_url(self.session, url) for url in resp_json['instruments']]
+            stocks = [Stock.from_url(self.session, url)
+                      for url in resp_json['instruments']]
             return (name, stocks)
         except Exception:
             raise APIError('Unable to download stock list')
 
     def history(self, bounds='trading', interval='5minute', span='day', account_id=None):
         """Get portfolio value history
-        
+
         Args:
             bounds: (str) The bounds for the returned price data
             interval: (str) The resolution of the data
             span: (str) The span of time to get data for
             account_id: (str, optional) The account id of the portfolio
-        
+
         Returns:
             (dict) Portfolio price data
         """
@@ -646,7 +659,7 @@ class Robinhood:
         try:
             url = ENDPOINTS['port_historicals'] \
                 + '{0}/?account={0}&bounds={1}&interval={2}&span={3}'\
-                    .format(account_id, bounds, interval, span)
+                .format(account_id, bounds, interval, span)
             res = self.session.get(url)
             res.raise_for_status()
             return res.json()
@@ -670,16 +683,16 @@ class Robinhood:
             stocks: (list<Stock>) Stocks to find prices for
             bounds: (str) The bounds for the returned price data
             include_inactive: (str) Include inactive stocks
-        
+
         Returns:
             (dict) Price data
         """
         assert len(stocks) > 0
         instrument_urls = ','.join([stock.instrument_url for stock in stocks])
         try:
-            res = self.session.get(ENDPOINTS['quotes'] + 
-                '?bounds={}&include_inactive={}&instruments={}'\
-                    .format(bounds, str(include_inactive).lower(), instrument_urls))
+            res = self.session.get(ENDPOINTS['quotes'] +
+                                   '?bounds={}&include_inactive={}&instruments={}'
+                                   .format(bounds, str(include_inactive).lower(), instrument_urls))
             results = res.json()['results']
             prices = {}
             for stock in stocks:
@@ -698,15 +711,15 @@ class Robinhood:
 
         Args:
             stocks: (list<Stock>) Stocks to find popularity for
-        
+
         Returns:
             (dict) Popularity data
         """
         assert len(stocks) > 0
         instrument_ids = ','.join([stock.id for stock in stocks])
         try:
-            res = self.session.get(ENDPOINTS['popularity'] + 
-                '?ids={}'.format(instrument_ids))
+            res = self.session.get(ENDPOINTS['popularity'] +
+                                   '?ids={}'.format(instrument_ids))
             results = res.json()['results']
             pop = {}
             for item in results:
@@ -725,15 +738,15 @@ class Robinhood:
 
         Args:
             stocks: (list<Stock>) Stocks to find ratings for
-        
+
         Returns:
             (dict) Ratings data
         """
         assert len(stocks) > 0
         instrument_ids = ','.join([stock.id for stock in stocks])
         try:
-            res = self.session.get(ENDPOINTS['ratings'] + 
-                '?ids={}'.format(instrument_ids))
+            res = self.session.get(ENDPOINTS['ratings'] +
+                                   '?ids={}'.format(instrument_ids))
             results = res.json()['results']
             ratings = {}
             for item in results:
@@ -781,8 +794,8 @@ class Currency:
     def history(self, bounds='24_7', interval='day', span='year'):
         """Retrieve the price history of this crypto"""
         try:
-            res = self.session.get(ENDPOINTS['nummus_historicals'] + 
-                '{}/?bounds={}&interval={}&span={}'.format(self.pair_id, bounds, interval, span))
+            res = self.session.get(ENDPOINTS['nummus_historicals'] +
+                                   '{}/?bounds={}&interval={}&span={}'.format(self.pair_id, bounds, interval, span))
             return res.json()['data_points']
         except Exception:
             raise APIError('Unable to access historical market data')
@@ -790,13 +803,14 @@ class Currency:
     @property
     def market_open(self):
         """Is this crypto's market open"""
-        return True # I think its always open...
+        return True  # I think its always open...
 
     @property
     def current_quote(self):
         """Current trade data"""
         try:
-            res = self.session.get(ENDPOINTS['forex_market_quote'] + self.pair_id + '/')
+            res = self.session.get(
+                ENDPOINTS['forex_market_quote'] + self.pair_id + '/')
             res.raise_for_status()
             return res.json()
         except Exception:
@@ -861,25 +875,25 @@ class Stock:
 
         Stock.cache[self.symbol] = self
 
-    @classmethod
-    def from_url(self, session, instrument_url):
+    @staticmethod
+    def from_url(session, instrument_url):
         """Create a stock from its instrument url"""
-        for symbol, stock in Stock.cache.items(): # try cache
+        for symbol, stock in Stock.cache.items():  # try cache
             if stock.id in instrument_url:
                 return stock
 
         return Stock(session, session.get(instrument_url).json())
 
-    @classmethod
-    def from_id(self, session, id_):
+    @staticmethod
+    def from_id(session, id_):
         """Create a stock from its instrument id"""
         return Stock.from_url(session, ENDPOINTS['instruments'] + id_ + '/')
 
     def history(self, bounds='regular', interval='day', span='year'):
         """Retrieve the price history of this stock"""
         try:
-            res = self.session.get(ENDPOINTS['historicals'] + 
-                '{}/?bounds={}&interval={}&span={}'.format(self.symbol, bounds, interval, span))
+            res = self.session.get(ENDPOINTS['historicals'] +
+                                   '{}/?bounds={}&interval={}&span={}'.format(self.symbol, bounds, interval, span))
             return res.json()['historicals']
         except Exception:
             raise APIError('Unable to access historical market data')
@@ -888,7 +902,8 @@ class Stock:
     def market_open(self):
         """If the market for this stock is open"""
         try:
-            res = self.session.get(self.market_url + 'hours/' + datetime.today().isoformat()[:10] + '/')
+            res = self.session.get(
+                self.market_url + 'hours/' + datetime.today().isoformat()[:10] + '/')
             res.raise_for_status()
             return res.json()['is_open']
         except Exception:
@@ -933,8 +948,8 @@ class Stock:
     def earnings(self):
         """Get the earnings history and estimates"""
         try:
-            res = self.session.get(ENDPOINTS['earnings'] + 
-                '?instrument=/instruments/' + self.id + '/')
+            res = self.session.get(ENDPOINTS['earnings'] +
+                                   '?instrument=/instruments/' + self.id + '/')
             res.raise_for_status()
             results = res.json()['results']
             earnings = []
@@ -951,8 +966,8 @@ class Stock:
     def fundamentals(self):
         """Ges"""
         try:
-            res = self.session.get(ENDPOINTS['fundamentals'] + 
-                self.id + '/?include_inactive=true')
+            res = self.session.get(ENDPOINTS['fundamentals'] +
+                                   self.id + '/?include_inactive=true')
             res.raise_for_status()
             return res.json()
         except Exception:
@@ -961,12 +976,14 @@ class Stock:
     def get_similar(self):
         """Get similar stocks"""
         try:
-            res = self.session.get(ENDPOINTS['instruments_similar'] + self.id + '/')
+            res = self.session.get(
+                ENDPOINTS['instruments_similar'] + self.id + '/')
             res.raise_for_status()
             results = res.json()['similar']
             stocks = []
             for item in results:
-                stocks.append(Stock.from_id(self.session, item['instrument_id']))
+                stocks.append(Stock.from_id(
+                    self.session, item['instrument_id']))
             return stocks
         except Exception:
             raise APIError('Unable to find similar stocks')
@@ -995,13 +1012,14 @@ class Stock:
             )
             ratings_cnt = summary['buy'] + summary['hold'] + summary['sell']
             summary.update(dict(
-                ratings_cnt=ratings_cnt, 
+                ratings_cnt=ratings_cnt,
                 buy_percent=summary['buy'] / ratings_cnt * 100,
                 hold_percent=summary['hold'] / ratings_cnt * 100,
                 sell_percent=summary['sell'] / ratings_cnt * 100
             ))
             ratings = [
-                dict(text=rate_json['text'], rating=rate_json['text'], published=rate_json['published_at']) 
+                dict(text=rate_json['text'], rating=rate_json['text'],
+                     published=rate_json['published_at'])
                 for rate_json in resp_json['ratings']
             ]
             return summary, ratings
@@ -1037,6 +1055,7 @@ class Order:
         symbol: (str) the symbol traded in the order, defaults None
         asset: (Stock or Currency) the asset traded in the order, defaults None
     """
+
     def __init__(self, session, order_json, asset_type, symbol=None, asset=None):
 
         self.session = session
@@ -1058,7 +1077,7 @@ class Order:
             self.pair_id = self.json['currency_pair_id']
             self.url = ENDPOINTS['nummus_orders'] + self.id
 
-            if not self.symbol: # try to pair with cache
+            if not self.symbol:  # try to pair with cache
                 for symbol, asset in Currency.cache.items():
                     if asset.pair_id == self.pair_id:
                         self.symbol = symbol
@@ -1069,7 +1088,7 @@ class Order:
             self.instrument_url = self.json['instrument']
             self.url = ENDPOINTS['orders'] + self.id
 
-            if not self.symbol: # try to pair with cache
+            if not self.symbol:  # try to pair with cache
                 for symbol, asset in Stock.cache.items():
                     if asset.instrument_url == self.instrument_url:
                         self.symbol = symbol
@@ -1083,12 +1102,12 @@ class Order:
         if self.json['price']:
             self.price = Decimal(self.json['price'])
         else:
-            self.price = None # price not set
+            self.price = None  # price not set
 
         if 'stop_price' in self.json and self.json['stop_price']:
             self.stop_price = Decimal(self.json['stop_price'])
         else:
-            self.stop_price = None # stop price not set
+            self.stop_price = None  # stop price not set
 
     @property
     def state(self):
@@ -1114,4 +1133,5 @@ class Order:
         if self.symbol:
             return f'<Order ({self.id[:8]}) [{self.symbol}]>'
         else:
-            return f'<Order ({self.id[:8]}) [...]>' # symbol has yet to be identified
+            # symbol has yet to be identified
+            return f'<Order ({self.id[:8]}) [...]>'
