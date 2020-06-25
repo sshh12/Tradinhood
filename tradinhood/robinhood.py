@@ -4,41 +4,17 @@ import requests
 import time
 import uuid
 
+import tradinhood.endpoints as URL
+from tradinhood.errors import *
+from tradinhood.models import *
+
 
 # The API seems to use 18 digits, so I copied that
 getcontext().prec = 18
 
 
-ENDPOINTS = {
-    'token': 'https://api.robinhood.com/oauth2/token/',
-    'challenge': 'https://api.robinhood.com/challenge/',
-    'accounts': 'https://api.robinhood.com/accounts/',
-    'quotes': 'https://api.robinhood.com/quotes/',
-    'orders': 'https://api.robinhood.com/orders/',
-    'news': 'https://api.robinhood.com/midlands/news/',
-    'fundamentals': 'https://api.robinhood.com/marketdata/fundamentals/',
-    'instruments': 'https://api.robinhood.com/instruments/',
-    'positions': 'https://api.robinhood.com/positions/',
-    'historicals': 'https://api.robinhood.com/marketdata/historicals/',
-    'earnings': 'https://api.robinhood.com/marketdata/earnings/',
-    'nummus_historicals': 'https://api.robinhood.com/marketdata/forex/historicals/',
-    'port_historicals': 'https://api.robinhood.com/portfolios/historicals/',
-    'forex_market_quote': 'https://api.robinhood.com/marketdata/forex/quotes/',
-    'tags': 'https://api.robinhood.com/midlands/tags/tag/',
-    'ratings': 'https://api.robinhood.com/midlands/ratings/',
-    'popularity': 'https://api.robinhood.com/instruments/popularity/',
-    'ratings': 'https://api.robinhood.com/midlands/ratings/',
-    'user': 'https://api.robinhood.com/user/',
-    'unified': 'https://phoenix.robinhood.com/accounts/unified',
-    'instruments_similar': 'https://dora.robinhood.com/instruments/similar/',
-    'holdings': 'https://nummus.robinhood.com/holdings/',
-    'nummus_orders': 'https://nummus.robinhood.com/orders/',
-    'currency_pairs': 'https://nummus.robinhood.com/currency_pairs/',
-    'nummus_accounts': 'https://nummus.robinhood.com/accounts/'
-}
-
-
-API_HEADERS = {  # Default header params
+# jUsT a ChRoMe bRowSer Bro
+API_HEADERS = {
     'Accept': '*/*',
     'Connection': 'keep-alive',
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/67.0.3396.99 Safari/537.36',
@@ -48,23 +24,8 @@ API_HEADERS = {  # Default header params
 }
 
 
-# Extracted from robinhood web app
+# Extracted from Robinhood web app
 OAUTH_CLIENT_ID = 'c82SH0WZOsabOXGP2sxqcj34FxkvfnWRZBKlBjFS'
-
-
-class RobinhoodException(Exception):
-    """Basic Robinhood exception"""
-    pass
-
-
-class APIError(RobinhoodException):
-    """An issue interfacing with the Robinhood API"""
-    pass
-
-
-class UsageError(RobinhoodException):
-    """An issue using this interface"""
-    pass
 
 
 class Robinhood:
@@ -92,7 +53,7 @@ class Robinhood:
 
     def _load(self):
         """Inits basic internal information"""
-        asset_currs = self._get_pagination(ENDPOINTS['currency_pairs'], auth=False)
+        asset_currs = self._get_pagination(URL.Nummus.currency_pairs, auth=False)
         for curr_json in asset_currs:
             currency = Currency(self.session, curr_json)
 
@@ -140,16 +101,16 @@ class Robinhood:
         assert self.logged_in
         try:
             if not acc_num:
-                res_json = self._get_pagination(ENDPOINTS['accounts'])
+                res_json = self._get_pagination(URL.API.accounts)
                 if len(res_json) == 0:
                     raise APIError('No robinhood accounts found. ' +
                                    'You may still be in the process of being verified.')
                 self.acc_num = res_json[0]['account_number']
             else:
                 self.acc_num = acc_num
-            self.account_url = ENDPOINTS['accounts'] + self.acc_num + '/'
+            self.account_url = URL.API.accounts + self.acc_num + '/'
             if not nummus_id:
-                res_nummus_json = self._get_pagination(ENDPOINTS['nummus_accounts'])
+                res_nummus_json = self._get_pagination(URL.Nummus.accounts)
                 if len(res_nummus_json) == 0:
                     raise APIError('No robinhood crypto accounts found. ' +
                                    'Try buying some online to get this part of your account activated.')
@@ -178,14 +139,14 @@ class Robinhood:
         Raises:
             APIError: If login fails
         """
-        if token:  # Skip login
+        if token:
             self.token = token
             self.session.headers['Authorization'] = 'Bearer ' + self.token
             self.logged_in = True
             self._load_auth(acc_num)
             return True
 
-        if not username or not password:  # If not provided, manually prompt
+        if not username or not password:
             import getpass
             username = input('Username: ')
             password = getpass.getpass('Password (Hidden): ')
@@ -206,7 +167,7 @@ class Robinhood:
 
         res_json = {}
         try:
-            res = self.session.post(ENDPOINTS['token'], json=req_json)
+            res = self.session.post(URL.API.token, json=req_json)
             res_json = res.json()
             if 'detail' in res_json and 'challenge issued' not in res_json['detail']:
                 res.raise_for_status()
@@ -217,12 +178,12 @@ class Robinhood:
             code = input('Verification Code: ')
             challenge_id = res_json['challenge']['id']
             challenge_res = self.session.post(
-                ENDPOINTS['challenge'] + challenge_id + '/respond/', json={'response': code})
+                URL.API.challenge + challenge_id + '/respond/', json={'response': code})
             if challenge_res.json()['status'] != 'validated':
                 raise APIError('Provided challenge code failed.')
             self.session.headers['X-ROBINHOOD-CHALLENGE-RESPONSE-ID'] = challenge_id
             try:
-                res = self.session.post(ENDPOINTS['token'], json=req_json)
+                res = self.session.post(URL.API.token, json=req_json)
                 res.raise_for_status()
                 res_json = res.json()
             except Exception:
@@ -232,7 +193,7 @@ class Robinhood:
             mfa_code = input('MFA Code: ')
             req_json['mfa_code'] = mfa_code
             try:
-                res = self.session.post(ENDPOINTS['token'], json=req_json)
+                res = self.session.post(URL.API.token, json=req_json)
                 res.raise_for_status()
                 res_json = res.json()
             except Exception:
@@ -278,7 +239,7 @@ class Robinhood:
         if symbol in Stock.cache:
             return Stock.cache[symbol]
         try:
-            results = self._get_pagination(ENDPOINTS['instruments'] + '?active_instruments_only=false&symbol=' + symbol)
+            results = self._get_pagination(URL.API.instruments + '?active_instruments_only=false&symbol=' + symbol)
             stock = Stock(self.session, results[0])
             return stock
         except Exception:
@@ -347,7 +308,7 @@ class Robinhood:
                 'time_in_force': time_in_force
             }
 
-            res = self.session.post(ENDPOINTS['nummus_orders'], json=req_json)
+            res = self.session.post(URL.Nummus.orders, json=req_json)
             res_json = res.json()
 
             if 'error_code' in res_json:
@@ -392,7 +353,7 @@ class Robinhood:
             if stop_price:
                 req_json['stop_price'] = stop_price
 
-            res = self.session.post(ENDPOINTS['orders'], json=req_json)
+            res = self.session.post(URL.API.orders, json=req_json)
             res_json = res.json()
 
             if 'error_code' in res_json:
@@ -458,9 +419,9 @@ class Robinhood:
     def query_orders(self, sort_by_time=True, include_stocks=True, include_crypto=True, pages=3, lookup_assets=True):
         """Search orders"""
         if include_stocks:
-            json_stocks = self._get_pagination(ENDPOINTS['orders'], pages=pages)
+            json_stocks = self._get_pagination(URL.API.orders, pages=pages)
         if include_crypto:
-            json_crypto = self._get_pagination(ENDPOINTS['nummus_orders'], pages=pages)
+            json_crypto = self._get_pagination(URL.Nummus.orders, pages=pages)
         orders = []
         orders += [Order(self.session, json_data, 'stock', lookup_asset=lookup_assets)
                    for json_data in json_stocks]
@@ -506,8 +467,6 @@ class Robinhood:
         Returns:
             (dict) Stock or Currency objects paired with quantities
         """
-        assert self.logged_in
-
         my_assets = {}
 
         if include_positions:
@@ -543,17 +502,17 @@ class Robinhood:
     def account_info(self):
         """Account info"""
         assert self.acc_num is not None
-        return self._get_authed(ENDPOINTS['accounts'] + self.acc_num)
+        return self._get_authed(URL.API.accounts + self.acc_num)
 
     @property
     def holdings(self):
         """Currency holdings"""
-        return self._get_pagination(ENDPOINTS['holdings'])
+        return self._get_pagination(URL.Nummus.holdings)
 
     @property
     def positions(self):
         """Share positions"""
-        return self._get_pagination(ENDPOINTS['positions'])
+        return self._get_pagination(URL.API.positions)
 
     @property
     def withdrawable_cash(self):
@@ -584,7 +543,7 @@ class Robinhood:
         Returns:
             (tuple str, list<Stock>) The name and list of stocks
         """
-        resp_json = self._get_authed(ENDPOINTS['tags'] + tag + '/')
+        resp_json = self._get_authed(URL.API.tags + tag + '/')
         name = resp_json['name']
         stocks = [Stock.from_url(self.session, url)
                   for url in resp_json['instruments']]
@@ -605,7 +564,7 @@ class Robinhood:
         assert self.logged_in
         if account_id is None:
             account_id = self.acc_num
-        url = ENDPOINTS['port_historicals'] \
+        url = URL.API.portfolios_historicals \
             + '{0}/?account={0}&bounds={1}&interval={2}&span={3}'\
             .format(account_id, bounds, interval, span)
         return self._get_authed(url)
@@ -613,12 +572,12 @@ class Robinhood:
     @property
     def unified_data(self):
         """Get the unified data of the account"""
-        return self._get_authed(ENDPOINTS['unified'])
+        return self._get_authed(URL.API.unified)
 
     @property
     def user_data(self):
         """Get the data about the account user"""
-        return self._get_authed(ENDPOINTS['user'])
+        return self._get_authed(URL.API.user)
 
     def get_bulk_prices(self, stocks, bounds='trading', include_inactive=True):
         """Get the prices of multiple stocks at the same time
@@ -633,7 +592,7 @@ class Robinhood:
         """
         assert len(stocks) > 0
         instrument_urls = ','.join([stock.instrument_url for stock in stocks])
-        url = (ENDPOINTS['quotes'] +
+        url = (URL.API.quotes +
                '?bounds={}&include_inactive={}&instruments={}'
                .format(bounds, str(include_inactive).lower(), instrument_urls))
         results = self._get_pagination(url)
@@ -658,7 +617,7 @@ class Robinhood:
         """
         assert len(stocks) > 0
         instrument_ids = ','.join([stock.id for stock in stocks])
-        url = (ENDPOINTS['popularity'] +
+        url = (URL.API.popularity +
                '?ids={}'.format(instrument_ids))
         results = self._get_pagination(url)
         pop = {}
@@ -682,7 +641,7 @@ class Robinhood:
         """
         assert len(stocks) > 0
         instrument_ids = ','.join([stock.id for stock in stocks])
-        url = (ENDPOINTS['ratings'] +
+        url = (URL.API.ratings +
                '?ids={}'.format(instrument_ids))
         results = self._get_pagination(url)
         ratings = {}
@@ -694,385 +653,3 @@ class Robinhood:
                     break
             ratings[item_stock] = item['summary']
         return ratings
-
-
-class Currency:
-    """Currency asset object
-
-    Attributes:
-        session: (Session) current session used by the API
-        json: (dict) internal data json
-        name: (str) currency name
-        code: (str) currency symbol
-        tradable: (bool) if tradable
-        type: (str) asset type
-        pair_id: (str) currency Pair id
-        asset_id: (str) the APIs id for this currency
-    """
-    cache = {}
-
-    def __init__(self, session, asset_json):
-
-        self.session = session
-        self.json = asset_json
-
-        self.name = self.json['asset_currency']['name']
-        self.code = self.json['asset_currency']['code']
-        self.symbol = self.json['symbol']
-        self.tradable = (self.json['tradability'] == 'tradable')
-        self.type = self.json['asset_currency']['type']
-        self.pair_id = self.json['id']
-        self.asset_id = self.json['asset_currency']['id']
-
-        Currency.cache[self.code] = self
-
-    def history(self, bounds='24_7', interval='day', span='year'):
-        """Retrieve the price history of this crypto"""
-        try:
-            res = self.session.get(ENDPOINTS['nummus_historicals'] +
-                                   '{}/?bounds={}&interval={}&span={}'.format(self.pair_id, bounds, interval, span))
-            return res.json()['data_points']
-        except Exception:
-            raise APIError('Unable to access historical market data')
-
-    @property
-    def market_open(self):
-        """Is this crypto's market open"""
-        return True  # I think its always open...
-
-    @property
-    def current_quote(self):
-        """Current trade data"""
-        try:
-            res = self.session.get(
-                ENDPOINTS['forex_market_quote'] + self.pair_id + '/')
-            res.raise_for_status()
-            return res.json()
-        except Exception:
-            raise APIError('Unable to access currency data')
-
-    @property
-    def price(self):
-        """Current price"""
-        return Decimal(self.current_quote['mark_price'])
-
-    @property
-    def ask(self):
-        """Current ask price"""
-        return Decimal(self.current_quote['ask_price'])
-
-    @property
-    def bid(self):
-        """Current bid price"""
-        return Decimal(self.current_quote['bid_price'])
-
-    def __hash__(self):
-        return hash(self.type + self.code)
-
-    def __eq__(self, other):
-        return isinstance(other, Currency) and other.code == self.code
-
-    def __repr__(self):
-        return f'<Currency ({self.name}) [{self.code}]>'
-
-
-class Stock:
-    """Stock asset object
-
-    Attributes:
-        session: (Session) current session used by the API
-        json: (dict) internal data json
-        name: (str) stock name
-        simple_name: (str) simple stock name
-        code: (str) currency symbol
-        symbol: (str) currency symbol
-        tradable: (bool) if tradable
-        type: (str) asset type
-        instrument_url: (str) the instrument url for this stock
-        id: (str) the APIs id for this stock
-    """
-    cache = {}
-
-    def __init__(self, session, instrument_json):
-
-        self.session = session
-        self.json = instrument_json
-
-        self.id = self.json['id']
-        self.name = self.json['name']
-        self.simple_name = self.json['simple_name']
-        self.symbol = self.json['symbol']
-        self.code = self.symbol
-        self.tradable = self.json['tradeable']
-        self.type = self.json['type']
-        self.instrument_url = ENDPOINTS['instruments'] + self.id + '/'
-        self.market_url = self.json['market']
-
-        Stock.cache[self.symbol] = self
-
-    @staticmethod
-    def from_url(session, instrument_url):
-        """Create a stock from its instrument url"""
-        for symbol, stock in Stock.cache.items():  # try cache
-            if stock.id in instrument_url:
-                return stock
-
-        return Stock(session, session.get(instrument_url).json())
-
-    @staticmethod
-    def from_id(session, id_):
-        """Create a stock from its instrument id"""
-        return Stock.from_url(session, ENDPOINTS['instruments'] + id_ + '/')
-
-    def history(self, bounds='regular', interval='day', span='year'):
-        """Retrieve the price history of this stock"""
-        try:
-            res = self.session.get(ENDPOINTS['historicals'] +
-                                   '{}/?bounds={}&interval={}&span={}'.format(self.symbol, bounds, interval, span))
-            return res.json()['historicals']
-        except Exception:
-            raise APIError('Unable to access historical market data')
-
-    @property
-    def market_open(self):
-        """If the market for this stock is open"""
-        try:
-            res = self.session.get(
-                self.market_url + 'hours/' + datetime.today().isoformat()[:10] + '/')
-            res.raise_for_status()
-            return res.json()['is_open']
-        except Exception:
-            raise APIError('Unable to access market data')
-
-    @property
-    def current_quote(self):
-        """Stock quote info"""
-        try:
-            res = self.session.get(ENDPOINTS['quotes'] + self.symbol + '/')
-            res.raise_for_status()
-            return res.json()
-        except Exception:
-            raise APIError('Unable to access stock data')
-
-    @property
-    def price(self):
-        """Current price"""
-        return Decimal(self.current_quote['last_trade_price'])
-
-    @property
-    def ask(self):
-        """Current ask price"""
-        return Decimal(self.current_quote['ask_price'])
-
-    @property
-    def bid(self):
-        """Current bid price"""
-        return Decimal(self.current_quote['bid_price'])
-
-    @property
-    def popularity(self):
-        """Get the number of open positions by Robinhood users"""
-        try:
-            res = self.session.get(self.instrument_url + 'popularity/')
-            res.raise_for_status()
-            return Decimal(res.json()['num_open_positions'])
-        except Exception:
-            raise APIError('Unable to access popularity data')
-
-    @property
-    def earnings(self):
-        """Get the earnings history and estimates"""
-        try:
-            res = self.session.get(ENDPOINTS['earnings'] +
-                                   '?instrument=/instruments/' + self.id + '/')
-            res.raise_for_status()
-            results = res.json()['results']
-            earnings = []
-            for item in results:
-                earning = {}
-                for key in ['year', 'quarter', 'eps', 'report', 'call']:
-                    earning[key] = item[key]
-                earnings.append(earning)
-            return earnings
-        except Exception:
-            raise APIError('Unable to access earnings data')
-
-    @property
-    def fundamentals(self):
-        """Ges"""
-        try:
-            res = self.session.get(ENDPOINTS['fundamentals'] +
-                                   self.id + '/?include_inactive=true')
-            res.raise_for_status()
-            return res.json()
-        except Exception:
-            raise APIError('Unable to get fundamentals')
-
-    def get_similar(self):
-        """Get similar stocks"""
-        try:
-            res = self.session.get(
-                ENDPOINTS['instruments_similar'] + self.id + '/')
-            res.raise_for_status()
-            results = res.json()['similar']
-            stocks = []
-            for item in results:
-                stocks.append(Stock.from_id(
-                    self.session, item['instrument_id']))
-            return stocks
-        except Exception:
-            raise APIError('Unable to find similar stocks')
-
-    def get_news(self):
-        """Get news for this stock"""
-        try:
-            res = self.session.get(ENDPOINTS['news'] + self.symbol + '/?')
-            res.raise_for_status()
-            return res.json()['results']
-        except Exception:
-            raise APIError('Unable to find news')
-
-    @property
-    def ratings(self):
-        """Get the overall buy/sell/hold ratings for this stock"""
-        try:
-            res = self.session.get(ENDPOINTS['ratings'] + self.id + '/')
-            res.raise_for_status()
-            resp_json = res.json()
-            summary = dict(
-                buy=resp_json['summary']['num_buy_ratings'],
-                hold=resp_json['summary']['num_hold_ratings'],
-                sell=resp_json['summary']['num_sell_ratings'],
-                published=resp_json['ratings_published_at']
-            )
-            ratings_cnt = summary['buy'] + summary['hold'] + summary['sell']
-            summary.update(dict(
-                ratings_cnt=ratings_cnt,
-                buy_percent=summary['buy'] / ratings_cnt * 100,
-                hold_percent=summary['hold'] / ratings_cnt * 100,
-                sell_percent=summary['sell'] / ratings_cnt * 100
-            ))
-            ratings = [
-                dict(text=rate_json['text'], rating=rate_json['text'],
-                     published=rate_json['published_at'])
-                for rate_json in resp_json['ratings']
-            ]
-            return summary, ratings
-        except Exception:
-            raise APIError('Unable to access popularity data')
-
-    def __hash__(self):
-        return hash(self.type + self.symbol)
-
-    def __eq__(self, other):
-        return isinstance(other, Stock) and other.symbol == self.symbol
-
-    def __repr__(self):
-        return f'<Stock ({self.simple_name}) [{self.symbol}]>'
-
-
-class Order:
-    """Order object
-
-    Attributes:
-        session: (Session) current session used by the API
-        json: (dict) internal data json
-        id: (str) the order id
-        side: (str) buy or sell
-        time_in_force: (str) how the order in enforced
-        created_at: (str) when the order was created
-        quantity: (Decimal) quantity of the asset
-        asset_type: (str) cryptocurrency or stock
-        cancel_url: (str) the url to cancel the order
-        price: (Decimal) the price set in the order,
-            this can be None
-        stop_price: (Deciaml) the stop price, None if not a stop order
-        symbol: (str) the symbol traded in the order, defaults None
-        asset: (Stock or Currency) the asset traded in the order, defaults None
-    """
-
-    def __init__(self, session, order_json, asset_type, symbol=None, asset=None, lookup_asset=False):
-
-        self.session = session
-        self.json = order_json
-
-        self.id = self.json['id']
-        self.side = self.json['side']
-        self.time_in_force = self.json['time_in_force']
-        self.created_at = self.json['created_at']
-
-        self.quantity = Decimal(self.json['quantity'])
-        self.order_type = self.json['type']
-        self.asset_type = asset_type
-        self.symbol = symbol
-        self.asset = asset
-
-        if self.asset_type == 'cryptocurrency':
-            self.pair_id = self.json['currency_pair_id']
-            self.url = ENDPOINTS['nummus_orders'] + self.id
-            if not self.symbol:
-                for symbol, asset in Currency.cache.items():
-                    if asset.pair_id == self.pair_id:
-                        self.symbol = symbol
-                        self.asset = asset
-
-        elif self.asset_type == 'stock':
-            self.instrument_url = self.json['instrument']
-            self.url = ENDPOINTS['orders'] + self.id
-            if not self.symbol:
-                for symbol, asset in Stock.cache.items():
-                    if asset.instrument_url == self.instrument_url:
-                        self.symbol = symbol
-                        self.asset = asset
-                        break
-                else:
-                    if lookup_asset:
-                        self._resolve_asset()
-
-        if 'cancel' in self.json:
-            self.cancel_url = self.json['cancel']
-        else:
-            self.cancel_url = self.json['cancel_url']
-
-        if self.json['price']:
-            self.price = Decimal(self.json['price'])
-        else:
-            self.price = None
-
-        if 'stop_price' in self.json and self.json['stop_price']:
-            self.stop_price = Decimal(self.json['stop_price'])
-        else:
-            self.stop_price = None
-
-    def _resolve_asset(self):
-        if self.asset_type == 'stock':
-            asset = Stock.from_url(self.session, self.instrument_url)
-            self.symbol = asset.symbol
-            self.asset = asset
-
-    @property
-    def state(self):
-        """Get order state [confirmed, queued, cancelled, filled]"""
-        try:
-            res = self.session.get(self.url)
-            res.raise_for_status()
-            res_json = res.json()
-            return res_json['state']
-        except Exception:
-            raise APIError('Unable to access order data')
-
-    def cancel(self):
-        """Cancel this order"""
-        try:
-            res = self.session.post(self.cancel_url)
-            res.raise_for_status()
-            return res.json()
-        except Exception:
-            raise APIError('Unable to cancel')
-
-    def __repr__(self):
-        if self.symbol:
-            return f'<Order ({self.id[:8]}) [{self.symbol}]>'
-        else:
-            # symbol has yet to be identified
-            return f'<Order ({self.id[:8]}) [...]>'
