@@ -12,6 +12,7 @@ class API:
     earnings = 'https://api.robinhood.com/marketdata/earnings/'
     portfolios_historicals = 'https://api.robinhood.com/portfolios/historicals/'
     forex_quote = 'https://api.robinhood.com/marketdata/forex/quotes/'
+    forex_historicals = 'https://api.robinhood.com/marketdata/forex/historicals/'
     tags = 'https://api.robinhood.com/midlands/tags/tag/'
     ratings = 'https://api.robinhood.com/midlands/ratings/'
     popularity = 'https://api.robinhood.com/instruments/popularity/'

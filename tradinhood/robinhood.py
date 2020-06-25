@@ -28,6 +28,10 @@ API_HEADERS = {
 OAUTH_CLIENT_ID = 'c82SH0WZOsabOXGP2sxqcj34FxkvfnWRZBKlBjFS'
 
 
+def default_auth_hook(name):
+    return input(name + '> ').strip()
+
+
 class Robinhood:
     """Robinhood API interface
 
@@ -55,7 +59,7 @@ class Robinhood:
         """Inits basic internal information"""
         asset_currs = self._get_pagination(URL.Nummus.currency_pairs, auth=False)
         for curr_json in asset_currs:
-            currency = Currency(self.session, curr_json)
+            currency = Currency(self, curr_json)
 
     def _get_pagination(self, start_url, auth=True, pages=100):
         results = []
@@ -83,6 +87,17 @@ class Robinhood:
         assert self.logged_in
         try:
             res = self.session.get(url)
+            res.raise_for_status()
+            return res.json()
+        except Exception as e:
+            raise APIError('Unable to access endpoint {} (got {})'.format(url, e))
+
+    def _post_authed(self, url, params=None):
+        try:
+            if params is None:
+                res = self.session.post(url)
+            else:
+                res = self.session.post(url, json=params)
             res.raise_for_status()
             return res.json()
         except Exception as e:
@@ -120,7 +135,8 @@ class Robinhood:
         except KeyError:
             raise APIError('Unable to load secure content (retry login)')
 
-    def login(self, token='', username='', password='', mfa_code='', verification='sms', acc_num=None, nummus_id=None):
+    def login(self, token='', username='', password='', mfa_code='',
+              auth_hook=default_auth_hook, verification='sms', acc_num=None, nummus_id=None):
         """Login/Authenticate
 
         Args:
@@ -175,7 +191,7 @@ class Robinhood:
             raise APIError('Login failed ' + str(res_json))
 
         if 'detail' in res_json and 'challenge issued' in res_json['detail']:
-            code = input('Verification Code: ')
+            code = auth_hook('verification_code')
             challenge_id = res_json['challenge']['id']
             challenge_res = self.session.post(
                 URL.API.challenge + challenge_id + '/respond/', json={'response': code})
@@ -190,7 +206,7 @@ class Robinhood:
                 raise APIError('Challenge auth failed')
 
         if 'mfa_required' in res_json and res_json['mfa_required']:
-            mfa_code = input('MFA Code: ')
+            mfa_code = auth_hook('mfa_code')
             req_json['mfa_code'] = mfa_code
             try:
                 res = self.session.post(URL.API.token, json=req_json)
@@ -240,7 +256,7 @@ class Robinhood:
             return Stock.cache[symbol]
         try:
             results = self._get_pagination(URL.API.instruments + '?active_instruments_only=false&symbol=' + symbol)
-            stock = Stock(self.session, results[0])
+            stock = Stock(self, results[0])
             return stock
         except Exception:
             raise APIError('Unable to find asset')
@@ -258,8 +274,7 @@ class Robinhood:
         Raises:
             UsageError: If the asset is not valid
         """
-        assert self.logged_in
-        if isinstance(asset, str):  # convert str to Stock or Currency
+        if isinstance(asset, str):
             asset = self.__getitem__(asset)
         if isinstance(asset, Currency):
             assets = self.get_assets(
@@ -269,7 +284,6 @@ class Robinhood:
                 include_positions=True, include_holdings=False, include_held=include_held)
         else:
             raise UsageError('Invalid asset type')
-        # default to zero if not in positions or holdings
         return assets.get(asset, Decimal('0.00'))
 
     def _order(self, order_side, asset, amt, type='market', price=None, stop_price=None, time_in_force='gtc', return_json=False):
@@ -308,8 +322,7 @@ class Robinhood:
                 'time_in_force': time_in_force
             }
 
-            res = self.session.post(URL.Nummus.orders, json=req_json)
-            res_json = res.json()
+            res_json = self._post_authed(URL.Nummus.orders, req_json)
 
             if 'error_code' in res_json:
                 raise APIError(res_json['error_code'])
@@ -317,7 +330,7 @@ class Robinhood:
             if return_json:
                 return res_json
             else:
-                return Order(self.session, res_json, 'cryptocurrency', symbol=asset.symbol, asset=asset)
+                return Order(self, res_json, 'cryptocurrency', symbol=asset.symbol, asset=asset)
 
         elif isinstance(asset, Stock):
 
@@ -353,8 +366,7 @@ class Robinhood:
             if stop_price:
                 req_json['stop_price'] = stop_price
 
-            res = self.session.post(URL.API.orders, json=req_json)
-            res_json = res.json()
+            res_json = self._post_authed(URL.API.orders, req_json)
 
             if 'error_code' in res_json:
                 raise APIError(res_json['error_code'])
@@ -362,7 +374,7 @@ class Robinhood:
             if return_json:
                 return res_json
             else:
-                return Order(self.session, res_json, 'stock', symbol=asset.symbol, asset=asset)
+                return Order(self, res_json, 'stock', symbol=asset.symbol, asset=asset)
 
         else:
             raise UsageError('Invalid asset')
@@ -423,9 +435,9 @@ class Robinhood:
         if include_crypto:
             json_crypto = self._get_pagination(URL.Nummus.orders, pages=pages)
         orders = []
-        orders += [Order(self.session, json_data, 'stock', lookup_asset=lookup_assets)
+        orders += [Order(self, json_data, 'stock', lookup_asset=lookup_assets)
                    for json_data in json_stocks]
-        orders += [Order(self.session, json_data, 'cryptocurrency')
+        orders += [Order(self, json_data, 'cryptocurrency')
                    for json_data in json_crypto]
         if sort_by_time:
             orders.sort(key=lambda o: o.created_at)
@@ -472,7 +484,7 @@ class Robinhood:
         if include_positions:
             stocks = self.positions
             for stock_json in stocks:
-                stock = Stock.from_url(self.session, stock_json['instrument'])
+                stock = Stock.from_url(self, stock_json['instrument'])
                 amt = Decimal(stock_json['quantity'])
                 if include_held:
                     amt += Decimal(stock_json['shares_held_for_buys'])
@@ -545,7 +557,7 @@ class Robinhood:
         """
         resp_json = self._get_authed(URL.API.tags + tag + '/')
         name = resp_json['name']
-        stocks = [Stock.from_url(self.session, url)
+        stocks = [Stock.from_url(self, url)
                   for url in resp_json['instruments']]
         return (name, stocks)
 
