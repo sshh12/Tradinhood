@@ -1,4 +1,5 @@
 class API:
+    """api.robinhood.com"""
     token = 'https://api.robinhood.com/oauth2/token/'
     challenge = 'https://api.robinhood.com/challenge/'
     accounts = 'https://api.robinhood.com/accounts/'
@@ -21,10 +22,12 @@ class API:
 
 
 class Phoenix:
+    """phoenix.robinhood.com"""
     unified = 'https://phoenix.robinhood.com/accounts/unified'
 
 
 class Nummus:
+    """nummus.robinhood.com"""
     accounts = 'https://nummus.robinhood.com/accounts/'
     holdings = 'https://nummus.robinhood.com/holdings/'
     orders = 'https://nummus.robinhood.com/orders/'
@@ -32,4 +35,5 @@ class Nummus:
 
 
 class Dora:
+    """dora.robinhood.com"""
     instruments_similar = 'https://dora.robinhood.com/instruments/similar/'

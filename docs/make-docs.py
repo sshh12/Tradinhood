@@ -35,12 +35,14 @@ def main():
 
             lines = [docs[0]] + [line[indent+1:] for line in docs[1:]]
 
-            if doc_type == 'class' or 'self' not in title:
+            if doc_type == 'class':
                 markdown.append('### ' + title)
                 prev_class = title
             elif prev_class is not None:
                 if '__init__' in title or 'from_' in title:
                     title = prev_class + '.' + title
+                elif title.startswith('_'):
+                    continue
                 else:
                     title = prev_class + '(...).' + title
 
@@ -52,6 +54,7 @@ def main():
 
     with open('docs/DOCS.md', 'w') as f:
         f.write('\n'.join(markdown))
+
 
 if __name__ == '__main__':
     main()

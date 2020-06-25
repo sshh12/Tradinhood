@@ -36,7 +36,7 @@ Creates the dataset with predefined params
 
        This is meant to be called only from the internal `from_...()` class methods
 ```
-`Dataset.from_google(self, symbol, resolution='1d', period='20d', exchange='NASD')`
+`Dataset.from_google(symbol, resolution='1d', period='20d', exchange='NASD')`
 ```
 Fetch data from google
 
@@ -54,7 +54,7 @@ Returns:
 Note:
     No longer supported by Google.
 ```
-`Dataset.from_alphavantage(self, symbol, resolution='1d', api_key='demo')`
+`Dataset.from_alphavantage(symbol, resolution='1d', api_key='demo')`
 ```
 Fetch data from AlphaVantage
 
@@ -65,7 +65,7 @@ Args:
 Returns:
     (Dataset) with prescribed params and data
 ```
-`Dataset.from_cryptocompare(self, symbol, resolution='1d', to_symbol='USD', limit=3000, last_unix_time=None)`
+`Dataset.from_cryptocompare(symbol, resolution='1d', to_symbol='USD', limit=3000, last_unix_time=None)`
 ```
 Fetch data from cryptocompare
 
@@ -81,7 +81,7 @@ Args:
 Returns:
     (Dataset) with prescribed params and data
 ```
-`Dataset.from_robinhood(self, asset, resolution='1d')`
+`Dataset.from_robinhood(asset, resolution='1d')`
 ```
 Fetch data from Robinhood
 
@@ -92,7 +92,7 @@ Args:
 Returns:
     (Dataset) with prescribed params and data
 ```
-`Dataset.from_file(self, filename)`
+`Dataset.from_file(filename)`
 ```
 Load from file
 
@@ -145,19 +145,28 @@ Args:
     ax: (Axes) Where to plot, defaults to pandas default
     show: (bool) Whether to run plt.show()
 ```
-`Dataset(...).__len__`
+# endpoints.py
+### API
+`API`
 ```
-The num of timesteps in the dataset
+api.robinhood.com
 ```
-`Dataset(...).__repr__`
+### Phoenix
+`Phoenix`
 ```
-Provides overview of what dataset contains
+phoenix.robinhood.com
 ```
-`Dataset(...).__ior__(self, other)`
+### Nummus
+`Nummus`
 ```
-Use |= to combine datasets
+nummus.robinhood.com
 ```
-# robinhood.py
+### Dora
+`Dora`
+```
+dora.robinhood.com
+```
+# errors.py
 ### RobinhoodException(Exception)
 `RobinhoodException(Exception)`
 ```
@@ -173,6 +182,149 @@ An issue interfacing with the Robinhood API
 ```
 An issue using this interface
 ```
+# models.py
+### Currency
+`Currency`
+```
+Currency asset object
+
+Attributes:
+    json: (dict) internal data json
+    name: (str) currency name
+    code: (str) currency symbol
+    tradable: (bool) if tradable
+    type: (str) asset type
+    pair_id: (str) currency Pair id
+    asset_id: (str) the APIs id for this currency
+```
+`Currency(...).history(self, bounds='24_7', interval='day', span='year')`
+```
+Retrieve the price history of this crypto
+```
+`Currency(...).market_open`
+```
+Is this crypto's market open
+```
+`Currency(...).current_quote`
+```
+Current trade data
+```
+`Currency(...).price`
+```
+Current price
+```
+`Currency(...).ask`
+```
+Current ask price
+```
+`Currency(...).bid`
+```
+Current bid price
+```
+### Stock
+`Stock`
+```
+Stock asset object
+
+Attributes:
+    id: (str) the instrument id for this stock
+    chain_id: (str) the id for this stock's options (or None)
+    bloomberg_id: (str) the bloomberg id
+    json: (dict) internal data json
+    name: (str) stock name
+    simple_name: (str) simple stock name
+    code: (str) currency symbol
+    symbol: (str) currency symbol
+    tradable: (bool) if tradable
+    type: (str) asset type
+    instrument_url: (str) the instrument url for this stock
+    fractional: (bool) if it supports fractional trading
+```
+`Stock.from_url(rbh, instrument_url)`
+```
+Create a stock from its instrument url
+```
+`Stock.from_id(rbh, id_)`
+```
+Create a stock from its instrument id
+```
+`Stock(...).history(self, bounds='regular', interval='day', span='year')`
+```
+Retrieve the price history of this stock
+```
+`Stock(...).market_open`
+```
+If the market for this stock is open
+```
+`Stock(...).current_quote`
+```
+Stock quote info
+```
+`Stock(...).price`
+```
+Current price
+```
+`Stock(...).ask`
+```
+Current ask price
+```
+`Stock(...).bid`
+```
+Current bid price
+```
+`Stock(...).popularity`
+```
+Get the number of open positions by Robinhood users
+```
+`Stock(...).earnings`
+```
+Get the earnings history and estimates
+```
+`Stock(...).fundamentals`
+```
+Get stock fundamentals
+```
+`Stock(...).get_similar`
+```
+Get similar stocks
+```
+`Stock(...).get_news(self, pages=1)`
+```
+Get news for this stock
+```
+`Stock(...).ratings`
+```
+Get the overall buy/sell/hold ratings for this stock
+```
+### Order
+`Order`
+```
+Order object
+
+Attributes:
+    json: (dict) internal data json
+    id: (str) the order id
+    side: (str) buy or sell
+    time_in_force: (str) how the order in enforced
+    created_at: (str) when the order was created
+    quantity: (Decimal) quantity of the asset
+    asset_type: (str) cryptocurrency or stock
+    cancel_url: (str) the url to cancel the order
+    price: (Decimal) the price set in the order,
+        this can be None
+    stop_price: (Deciaml) the stop price, None if not a stop order
+    symbol: (str) the symbol traded in the order, defaults None
+    asset: (Stock or Currency) the asset traded in the order, defaults None
+```
+`Order(...).state`
+```
+Get order state [confirmed, queued, cancelled, filled]
+```
+`Order(...).cancel`
+```
+Cancel this order
+```
+# robinhood.py
 ### Robinhood
 `Robinhood`
 ```
@@ -189,41 +341,6 @@ Attributes:
 ```
 Creates session used in client
 ```
-`Robinhood(...)._load`
-```
-Inits basic internal information
-```
-`Robinhood(...)._load_auth(self, acc_num=None, nummus_id=None)`
-```
-Inits internal account information from Robinhood
-
-Args:
-    acc_num: (str, optional) manually specify the account number
-    nummus_id: (str, optional) manually specify the nummus id
-
-Raises:
-    APIError: If logged in but no account found
-```
-`Robinhood(...).login(self, token='', username='', password='', mfa_code='', verification='sms', acc_num=None, nummus_id=None)`
-```
-Login/Authenticate
-
-Args:
-    token: (str) required if username/password not given, bypasses login
-        since API token already known
-    username: (str) required login information if token not specified
-    password: (str) required login information if token not specified
-    mfa_code: (str) 2 Factor code, required if enabled on the account
-    verification: (str) The type of verification to use if required [sms, email]
-    acc_num: (str, optional) manual specify the account number
-    nummus_id: (str, optional) manual specify the nummus id
-
-Returns:
-    (bool) If login was successful
-
-Raises:
-    APIError: If login fails
-```
 `Robinhood(...).save_login(self, fn='robinhood-login')`
 ```
 Save login to file
@@ -231,19 +348,6 @@ Save login to file
 `Robinhood(...).load_login(self, fn='robinhood-login')`
 ```
 Login from file
-```
-`Robinhood(...).__getitem__(self, symbol)`
-```
-Access items using robinhood[symbol]
-
-Args:
-    symbol: (str) The currency or stock symbol, ex. AMZN, DOGE
-
-Returns:
-    (Currency | Stock) The object associated with that symbol
-
-Raises:
-    APIError: If symbol cannot be associated with a stock or currency
 ```
 `Robinhood(...).quantity(self, asset, include_held=False)`
 ```
@@ -258,12 +362,6 @@ Returns:
 
 Raises:
     UsageError: If the asset is not valid
-```
-`Robinhood(...)._order(self, order_side, asset, amt, type='market', price=None, stop_price=None, time_in_force='gtc', return_json=False)`
-```
-Internal order method
-
-       See .buy(...) and .sell(...)
 ```
 `Robinhood(...).buy(self, asset, amt, **kwargs)`
 ```
@@ -307,9 +405,13 @@ Returns:
 Raises:
     UsageError: If used incorrectly...
 ```
-`Robinhood(...).orders(self, sort_by_time=True, return_json=False)`
+`Robinhood(...).orders`
 ```
-Get order history
+Get recent order history
+```
+`Robinhood(...).query_orders(self, sort_by_time=True, include_stocks=True, include_crypto=True, pages=3, lookup_assets=True)`
+```
+Search orders
 ```
 `Robinhood(...).wait_for_orders(self, orders, delay=5, timeout=120, force=False)`
 ```
@@ -392,6 +494,10 @@ Returns:
 ```
 Get the unified data of the account
 ```
+`Robinhood(...).user_data`
+```
+Get the data about the account user
+```
 `Robinhood(...).get_bulk_prices(self, stocks, bounds='trading', include_inactive=True)`
 ```
 Get the prices of multiple stocks at the same time
@@ -424,147 +530,6 @@ Args:
 Returns:
     (dict) Ratings data
 ```
-### Currency
-`Currency`
-```
-Currency asset object
-
-Attributes:
-    session: (Session) current session used by the API
-    json: (dict) internal data json
-    name: (str) currency name
-    code: (str) currency symbol
-    tradable: (bool) if tradable
-    type: (str) asset type
-    pair_id: (str) currency Pair id
-    asset_id: (str) the APIs id for this currency
-```
-`Currency(...).history(self, bounds='24_7', interval='day', span='year')`
-```
-Retrieve the price history of this crypto
-```
-`Currency(...).market_open`
-```
-Is this crypto's market open
-```
-`Currency(...).current_quote`
-```
-Current trade data
-```
-`Currency(...).price`
-```
-Current price
-```
-`Currency(...).ask`
-```
-Current ask price
-```
-`Currency(...).bid`
-```
-Current bid price
-```
-### Stock
-`Stock`
-```
-Stock asset object
-
-Attributes:
-    session: (Session) current session used by the API
-    json: (dict) internal data json
-    name: (str) stock name
-    simple_name: (str) simple stock name
-    code: (str) currency symbol
-    symbol: (str) currency symbol
-    tradable: (bool) if tradable
-    type: (str) asset type
-    instrument_url: (str) the instrument url for this stock
-    id: (str) the APIs id for this stock
-```
-`Stock.from_url(self, session, instrument_url)`
-```
-Create a stock from its instrument url
-```
-`Stock.from_id(self, session, id_)`
-```
-Create a stock from its instrument id
-```
-`Stock(...).history(self, bounds='regular', interval='day', span='year')`
-```
-Retrieve the price history of this stock
-```
-`Stock(...).market_open`
-```
-If the market for this stock is open
-```
-`Stock(...).current_quote`
-```
-Stock quote info
-```
-`Stock(...).price`
-```
-Current price
-```
-`Stock(...).ask`
-```
-Current ask price
-```
-`Stock(...).bid`
-```
-Current bid price
-```
-`Stock(...).popularity`
-```
-Get the number of open positions by Robinhood users
-```
-`Stock(...).earnings`
-```
-Get the earnings history and estimates
-```
-`Stock(...).fundamentals`
-```
-Ges
-```
-`Stock(...).get_similar`
-```
-Get similar stocks
-```
-`Stock(...).get_news`
-```
-Get news for this stock
-```
-`Stock(...).ratings`
-```
-Get the overall buy/sell/hold ratings for this stock
-```
-### Order
-`Order`
-```
-Order object
-
-Attributes:
-    session: (Session) current session used by the API
-    json: (dict) internal data json
-    id: (str) the order id
-    side: (str) buy or sell
-    time_in_force: (str) how the order in enforced
-    created_at: (str) when the order was created
-    quantity: (Decimal) quantity of the asset
-    asset_type: (str) cryptocurrency or stock
-    cancel_url: (str) the url to cancel the order
-    price: (Decimal) the price set in the order,
-        this can be None
-    stop_price: (Deciaml) the stop price, None if not a stop order
-    symbol: (str) the symbol traded in the order, defaults None
-    asset: (Stock or Currency) the asset traded in the order, defaults None
-```
-`Order(...).state`
-```
-Get order state [confirmed, queued, cancelled, filled]
-```
-`Order(...).cancel`
-```
-Cancel this order
-```
 # traders.py
 ### BaseTrader
 `BaseTrader`
@@ -580,13 +545,6 @@ Attributes:
 Create trader
 
        Only symbols required, the rest of init is done with .start(...)
-```
-`BaseTrader(...)._step(self, current_date, *args, **kwargs)`
-```
-Run algo one timestep
-
-       This is an internal method used by classes which implement BaseTraderself.
-       Do not call with algorithm.
 ```
 `BaseTrader(...).log_as_dataframe`
 ```
