@@ -1,4 +1,4 @@
-# dataset.py
+# tradinhood.dataset
 ### DatasetException(Exception)
 `DatasetException(Exception)`
 ```
@@ -145,7 +145,7 @@ Args:
     ax: (Axes) Where to plot, defaults to pandas default
     show: (bool) Whether to run plt.show()
 ```
-# endpoints.py
+# tradinhood.endpoints
 ### API
 `API`
 ```
@@ -166,7 +166,7 @@ nummus.robinhood.com
 ```
 dora.robinhood.com
 ```
-# errors.py
+# tradinhood.errors
 ### RobinhoodException(Exception)
 `RobinhoodException(Exception)`
 ```
@@ -182,7 +182,7 @@ An issue interfacing with the Robinhood API
 ```
 An issue using this interface
 ```
-# models.py
+# tradinhood.models
 ### Currency
 `Currency`
 ```
@@ -284,6 +284,19 @@ Get the earnings history and estimates
 ```
 Get stock fundamentals
 ```
+`Stock(...).query_options(self, state='active', expiration_dates=None, type_=None, pages=1)`
+```
+Get options for this stock
+
+Args:
+    state: {'active', None}
+    expiration_dates: (str) ex. '2020-06-26'
+    type_: {'put', 'call', None}
+    pages: (int) max pages of options to pull
+
+Returns:
+    (list<Option>) Options found
+```
 `Stock(...).get_similar`
 ```
 Get similar stocks
@@ -324,7 +337,48 @@ Get order state [confirmed, queued, cancelled, filled]
 ```
 Cancel this order
 ```
-# robinhood.py
+### Option
+`Option`
+```
+Option object
+
+Attributes:
+    json: (dict) internal data json
+    asset: (Stock) stock this option is for
+    chain_id: (str) robinhood chain id
+    type_: (str) {'call', 'put'}
+    strike: (Decimal) strike price
+    tradable: (bool) can be traded
+```
+`Option.from_json(rbh, asset, json)`
+```
+Create a option from its json value
+```
+`Option(...).stats`
+```
+Get the price and other info about this option
+```
+`Option(...).greeks`
+```
+Get the greeks for this option
+```
+`Option(...).ask`
+```
+Current ask price
+```
+`Option(...).bid`
+```
+Current bid price
+```
+`Option(...).iv`
+```
+Current implied volatility
+```
+`Option(...).open_interest`
+```
+Current open interest
+```
+# tradinhood.robinhood
 ### Robinhood
 `Robinhood`
 ```
@@ -530,7 +584,17 @@ Args:
 Returns:
     (dict) Ratings data
 ```
-# traders.py
+`Robinhood(...).get_bulk_options_stats(self, options)`
+```
+Get info for multiple options at the same time
+
+Args:
+    options: (list<Option>) Options to find stats for
+
+Returns:
+    (dict) Options data
+```
+# tradinhood.traders
 ### BaseTrader
 `BaseTrader`
 ```

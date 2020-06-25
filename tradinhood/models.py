@@ -102,7 +102,7 @@ class Stock:
         self.instrument_url = URL.API.instruments + self.id + '/'
         self.market_url = self.json['market']
         self.fractional = (self.json.get('fractional_tradability') == 'tradeable')
-        self.chain_id = self.json.get('chain_id')
+        self.chain_id = self.json.get('tradable_chain_id')
         self.bloomberg_id = self.json.get('bloomberg_unique')
         Stock.cache[self.symbol] = self
 
@@ -177,6 +177,37 @@ class Stock:
         """Get stock fundamentals"""
         return self.rbh._get_authed(URL.API.fundamentals +
                                     self.id + '/?include_inactive=true')
+
+    @property
+    def calls(self):
+        return self.query_options(type_='call')
+
+    @property
+    def puts(self):
+        return self.query_options(type_='puts')
+
+    def query_options(self, state='active', expiration_dates=None, type_=None, pages=1):
+        """Get options for this stock
+
+        Args:
+            state: {'active', None}
+            expiration_dates: (str) ex. '2020-06-26'
+            type_: {'put', 'call', None}
+            pages: (int) max pages of options to pull
+
+        Returns:
+            (list<Option>) Options found
+        """
+        assert self.chain_id is not None
+        url = URL.API.options + '?chain_id={}'.format(self.chain_id)
+        if state is not None:
+            url += f'&state={state}'
+        if type_ is not None:
+            url += f'&type={type_}'
+        if expiration_dates is not None:
+            url += f'&expiration_dates={expiration_dates}'
+        results = self.rbh._get_pagination(url, pages=pages)
+        return [Option.from_json(self.rbh, self, result) for result in results]
 
     def get_similar(self):
         """Get similar stocks"""
@@ -312,3 +343,74 @@ class Order:
         else:
             # symbol has yet to be identified
             return f'<Order ({self.id[:8]}) [...]>'
+
+
+class Option:
+    """Option object
+
+    Attributes:
+        json: (dict) internal data json
+        asset: (Stock) stock this option is for
+        chain_id: (str) robinhood chain id
+        type_: (str) {'call', 'put'}
+        strike: (Decimal) strike price
+        tradable: (bool) can be traded
+    """
+    cache = {}
+
+    def __init__(self, rbh, asset, option_json):
+        self.rbh = rbh
+        self.asset = asset
+        self.json = option_json
+        self.chain_id = self.json['chain_id']
+        self.type_ = self.json['type']
+        self.strike = Decimal(self.json['strike_price'])
+        self.tradable = (self.json['tradability'] == 'tradable')
+        self.url = self.json['url']
+        Option.cache[self.url] = self
+
+    @staticmethod
+    def from_json(rbh, asset, json):
+        """Create a option from its json value"""
+        for url, option in Option.cache.items():
+            if option.url == json['url']:
+                return option
+        return Option(rbh, asset, json)
+
+    @property
+    def stats(self):
+        """Get the price and other info about this option"""
+        return self.rbh.get_bulk_options_stats([self])[self]
+
+    @property
+    def greeks(self):
+        """Get the greeks for this option"""
+        stats = self.stats
+        greeks = {}
+        for greek_letter in ['delta', 'gamma', 'theta', 'rho', 'vega']:
+            if stats[greek_letter] is not None:
+                greeks[greek_letter] = Decimal(stats[greek_letter])
+        return greeks
+
+    @property
+    def ask(self):
+        """Current ask price"""
+        return Decimal(self.stats['ask_price'])
+
+    @property
+    def bid(self):
+        """Current bid price"""
+        return Decimal(self.stats['bid_price'])
+
+    @property
+    def iv(self):
+        """Current implied volatility"""
+        return Decimal(self.stats['implied_volatility'])
+
+    @property
+    def open_interest(self):
+        """Current open interest"""
+        return Decimal(self.stats['open_interest'])
+
+    def __repr__(self):
+        return f'<Option {self.type_.upper()} @ {self.strike} for {self.asset}>'

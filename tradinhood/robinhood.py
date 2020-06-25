@@ -665,3 +665,27 @@ class Robinhood:
                     break
             ratings[item_stock] = item['summary']
         return ratings
+
+    def get_bulk_options_stats(self, options):
+        """Get info for multiple options at the same time
+
+        Args:
+            options: (list<Option>) Options to find stats for
+
+        Returns:
+            (dict) Options data
+        """
+        assert len(options) > 0
+        instrument_urls = ','.join([option.url for option in options])
+        url = (URL.API.options_marketdata +
+               '?instruments={}'.format(instrument_urls))
+        results = self._get_pagination(url)
+        stats = {}
+        for item in results:
+            item_option = None
+            for option in options:
+                if item['instrument'] == option.url:
+                    item_option = option
+                    break
+            stats[item_option] = item
+        return stats

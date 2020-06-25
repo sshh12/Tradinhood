@@ -15,7 +15,7 @@ def main():
         if 'init' in fn:
             continue
 
-        markdown.append('# ' + os.path.basename(fn))
+        markdown.append('# ' + 'tradinhood.' + os.path.basename(fn.replace('.py', '')))
 
         prev_class = None
 

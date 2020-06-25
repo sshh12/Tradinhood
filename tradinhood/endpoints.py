@@ -19,6 +19,8 @@ class API:
     popularity = 'https://api.robinhood.com/instruments/popularity/'
     ratings = 'https://api.robinhood.com/midlands/ratings/'
     user = 'https://api.robinhood.com/user/'
+    options = 'https://api.robinhood.com/options/instruments/'
+    options_marketdata = 'https://api.robinhood.com/marketdata/options/'
 
 
 class Phoenix:
