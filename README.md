@@ -15,6 +15,7 @@ Example Usage:
 ```python
 from tradinhood import Robinhood
 from decimal import Decimal
+import random
 
 rbh = Robinhood()
 
@@ -33,9 +34,6 @@ apple = rbh['AAPL']
 # num shares owned in apple
 apple_shares = rbh.quantity(apple)
 
-# Doge is hot rt now so... (WARN: Do NOT run this code)
-do_not_run_me() # just in case
-
 # See more info about AAPL
 print(apple.popularity)
 print(apple.ratings)
@@ -44,11 +42,21 @@ print(apple.fundamentals)
 print(apple.get_similar())
 print(apple.get_news())
 
-# Ditch Apple stock
+# Check options
+for option in apple.puts:
+    print(option.iv)
+    print(option.greeks)
+
+# (WARN: Do NOT run this code)
+do_not_run_me() # just in case
+
+random_option = random.choice(apple.puts)
+rbh.order_options([('buy', random_option, 'open')], quantity=1, price=4.20)
+
+# Time to switch to Dogecoin...ditch Apple stock
 rbh.sell(apple, apple_shares, type='market')
 
 # A couple mins later...
-
 money_gained = apple_shares * apple.price
 print('Sold abt $', money_gained, 'of AAPL')
 
