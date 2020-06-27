@@ -15,6 +15,7 @@ class BaseTrader:
         log: (dict) a log containing time, cash, and assets
         symbols: (list: str) the symbols tracked
     """
+
     ### Base Methods ###
 
     def __init__(self, symbols):
@@ -22,7 +23,7 @@ class BaseTrader:
 
         Only symbols required, the rest of init is done with .start(...)
         """
-        assert len(symbols) > 0 # you have to be trading something...
+        assert len(symbols) > 0  # you have to be trading something...
 
         self.log = defaultdict(list)
         self.symbols = symbols
@@ -33,25 +34,25 @@ class BaseTrader:
         This is an internal method used by classes which implement BaseTraderself.
         Do not call with algorithm.
         """
-        ## Pre
-        self.log['datetime'].append(current_date)
-        self.log['start_cash'].append(self.cash)
-        self.log['start_portfolio_value'].append(self.portfolio_value)
+        # Pre
+        self.log["datetime"].append(current_date)
+        self.log["start_cash"].append(self.cash)
+        self.log["start_portfolio_value"].append(self.portfolio_value)
 
         for symbol in self.symbols:
-            self.log['start_owned_' + symbol].append(self.quantity(symbol))
-            self.log['start_price_' + symbol].append(self.price(symbol))
+            self.log["start_owned_" + symbol].append(self.quantity(symbol))
+            self.log["start_price_" + symbol].append(self.price(symbol))
 
-        ## Execute
+        # Execute
         self.loop(current_date, *args, **kwargs)
 
-        ## Post
-        self.log['end_cash'].append(self.cash)
-        self.log['end_portfolio_value'].append(self.portfolio_value)
+        # Post
+        self.log["end_cash"].append(self.cash)
+        self.log["end_portfolio_value"].append(self.portfolio_value)
 
         for symbol in self.symbols:
-            self.log['end_owned_' + symbol].append(self.quantity(symbol))
-            self.log['end_price_' + symbol].append(self.price(symbol))
+            self.log["end_owned_" + symbol].append(self.quantity(symbol))
+            self.log["end_price_" + symbol].append(self.price(symbol))
 
     def log_as_dataframe(self):
         """Convert log to a pandas DataFrame
@@ -59,17 +60,17 @@ class BaseTrader:
         Returns:
             (DataFrame)
         """
-        df = pd.DataFrame.from_dict(self.log).set_index('datetime')
+        df = pd.DataFrame.from_dict(self.log).set_index("datetime")
         df.index = pd.to_datetime(df.index)
 
-        numeric_cols = ['start_cash', 'end_cash', 'start_portfolio_value', 'end_portfolio_value']
+        numeric_cols = ["start_cash", "end_cash", "start_portfolio_value", "end_portfolio_value"]
         for symbol in self.symbols:
-            numeric_cols.append('start_owned_' + symbol)
+            numeric_cols.append("start_owned_" + symbol)
         df[numeric_cols] = df[numeric_cols].apply(pd.to_numeric)
 
         return df
 
-    def plot(self, columns=['end_portfolio_value', 'end_cash'], ax=None, show=False):
+    def plot(self, columns=["end_portfolio_value", "end_cash"], ax=None, show=False):
         """Plot money
 
         Args:
@@ -93,7 +94,7 @@ class BaseTrader:
         if not symbols:
             symbols = self.symbols
         df = self.log_as_dataframe()
-        df[['end_owned_' + symbol for symbol in self.symbols]].plot(ax=ax)
+        df[["end_owned_" + symbol for symbol in self.symbols]].plot(ax=ax)
         if show:
             plt.show()
 
@@ -182,6 +183,7 @@ class Backtester(BaseTrader):
         dataset: (Dataset) the dataset used
         steps: (list: str) the timestamps covered by the dataset
     """
+
     def start(self, dataset, cash=10000, start_idx=50):
         """Start the backtesting
 
@@ -228,7 +230,7 @@ class Backtester(BaseTrader):
         assert self.idx > steps
 
         hist = []
-        for date in self.steps[(self.idx - steps):self.idx]:
+        for date in self.steps[(self.idx - steps) : self.idx]:
             hist.append(self.dataset.get(date, symbol))
         return hist
 
@@ -265,7 +267,8 @@ class Robinhood(BaseTrader):
         rbh: (Robinhood*) a robinhood client
         resolution: (str) the trade resolution/frequency
     """
-    def start(self, robinhood, resolution='1d', until=None):
+
+    def start(self, robinhood, resolution="1d", until=None):
         """Starts live trading
 
         Args:
@@ -296,7 +299,7 @@ class Robinhood(BaseTrader):
             wait_time = (date_end - datetime.now()).total_seconds()
 
             if wait_time <= 0:
-                print('Your algo\'s loop took longer than a timestep!')
+                print("Your algo's loop took longer than a timestep!")
             else:
                 time.sleep(wait_time)
 
@@ -324,7 +327,7 @@ class Robinhood(BaseTrader):
         return self.rbh[symbol].price
 
     def history(self, symbol, steps):
-        return [] # TODO
+        return []  # TODO
 
     def buy(self, symbol, amt, wait=True, **kwargs):
         """Buy stock/currency
