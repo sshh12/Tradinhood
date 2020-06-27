@@ -3,7 +3,7 @@
 Programmatically trading stocks and crypto with Robinhood.
 
 ```shell
-$ pip install git+https://github.com/sshh12/Tradinhood
+$ pip install git+https://github.com/sshh12/Tradinhood.git --upgrade
 ```
 
 [Docs](https://github.com/sshh12/Tradinhood/blob/master/docs/DOCS.md)
