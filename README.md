@@ -84,6 +84,12 @@ print(rbh.get_bulk_popularity(movers))
 print(rbh.history())
 ```
 
+```python
+from tradinhood.tools import order_profit_loss
+
+print(order_profit_loss(rbh, pages=3, include_options=False))
+```
+
 ## Relevant
 
 Unoffical API Docs [sanko/Robinhood](https://github.com/sanko/Robinhood)

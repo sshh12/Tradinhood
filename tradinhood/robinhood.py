@@ -1,17 +1,14 @@
-from decimal import getcontext, Decimal
+"""
+Main Robinhood Client
+"""
 from datetime import datetime
 import requests
 import time
-import uuid
 
 import tradinhood.endpoints as URL
+from tradinhood.util import *
 from tradinhood.errors import *
 from tradinhood.models import *
-
-
-# The API seems to use 18 digits, so I copied that
-getcontext().prec = 18
-
 
 # jUsT a ChRoMe bRowSer Bro
 API_HEADERS = {
@@ -53,7 +50,7 @@ class Robinhood:
         """Creates session used in client"""
         self.session = requests.session()
         self.session.headers = API_HEADERS
-        self.device_token = str(uuid.uuid4())
+        self.device_token = gen_ref_id()
         self._load()
 
     def _load(self):
@@ -295,7 +292,7 @@ class Robinhood:
             assets = self.get_assets(include_positions=True, include_holdings=False, include_held=include_held)
         else:
             raise UsageError("Invalid asset type")
-        return assets.get(asset, Decimal("0.00"))
+        return assets.get(asset, to_to_decimal("0.00"))
 
     def _order(
         self,
@@ -326,7 +323,7 @@ class Robinhood:
             price = asset.price
         price = str(price)
 
-        ref_id = str(uuid.uuid4())
+        ref_id = gen_ref_id()
 
         if isinstance(asset, Currency):
 
@@ -357,10 +354,7 @@ class Robinhood:
         elif isinstance(asset, Stock):
 
             assert type in ["market", "limit", "stoploss", "stoplimit"]
-
-            # Convert types into correct parameters
-            order_type = "market" if (type in ["market", "stoploss"]) else "limit"
-            trigger = "immediate" if (type in ["market", "limit"]) else "stop"
+            order_type, trigger = split_rh_order_type(type)
 
             if trigger == "stop":
                 assert stop_price
@@ -473,16 +467,15 @@ class Robinhood:
             assert isinstance(option, Option)
             assets.append(option)
             opt_legs.append({"side": side, "option": option.url, "position_effect": effect, "ratio_quantity": "1"})
-        ref_id = str(uuid.uuid4())
-        order_type = "market" if (type in ["market", "stoploss"]) else "limit"
-        trigger = "immediate" if (type in ["market", "limit"]) else "stop"
+        ref_id = gen_ref_id()
+        order_type, trigger = split_rh_order_type(type)
         req_json = {
             "ref_id": ref_id,
             "account": self.account_url,
             "direction": direction,
             "type": order_type,
             "price": str(price),
-            "quantity": "todo",
+            "quantity": str(quantity),
             "override_day_trade_checks": False,
             "override_dtbp_checks": False,
             "time_in_force": time_in_force,
@@ -496,7 +489,7 @@ class Robinhood:
         if return_json:
             return res_json
         else:
-            return Order(self, res_json, assets=assets)
+            return OptionsOrder(self, res_json, assets=assets)
 
     @property
     def orders(self):
@@ -511,6 +504,7 @@ class Robinhood:
         include_options=True,
         pages=3,
         lookup_assets=True,
+        state=None
     ):
         """Search orders"""
         orders = []
@@ -525,6 +519,8 @@ class Robinhood:
         if include_options:
             json_options = self._get_pagination(URL.API.options_orders, pages=pages)
             orders += [OptionsOrder(self, json_data, lookup_assets=lookup_assets) for json_data in json_options]
+        if state is not None:
+            orders = [order for order in orders if order.json['state'] == state]
         if sort_by_time:
             orders.sort(key=lambda o: o.created_at, reverse=True)
         return orders
@@ -573,13 +569,13 @@ class Robinhood:
             stocks = self.positions
             for stock_json in stocks:
                 stock = Stock.from_url(self, stock_json["instrument"])
-                amt = Decimal(stock_json["quantity"])
+                amt = to_decimal(stock_json["quantity"])
                 if include_held:
-                    amt += Decimal(stock_json["shares_held_for_buys"])
-                    amt += Decimal(stock_json["shares_held_for_sells"])
-                    amt += Decimal(stock_json["shares_held_for_options_collateral"])
-                    amt += Decimal(stock_json["shares_held_for_options_events"])
-                    amt += Decimal(stock_json["shares_held_for_stock_grants"])
+                    amt += to_decimal(stock_json["shares_held_for_buys"])
+                    amt += to_decimal(stock_json["shares_held_for_sells"])
+                    amt += to_decimal(stock_json["shares_held_for_options_collateral"])
+                    amt += to_decimal(stock_json["shares_held_for_options_events"])
+                    amt += to_decimal(stock_json["shares_held_for_stock_grants"])
                 if include_zero or amt > 0:
                     my_assets[stock] = amt
 
@@ -589,10 +585,10 @@ class Robinhood:
                 code = curr_json["currency"]["code"]
                 if code in Currency.cache:  # all currencies already cached
                     curr = Currency.cache[code]
-                    amt = Decimal(curr_json["quantity_available"])
+                    amt = to_decimal(curr_json["quantity_available"])
                     if include_held:
-                        amt += Decimal(curr_json["quantity_held_for_buy"])
-                        amt += Decimal(curr_json["quantity_held_for_sell"])
+                        amt += to_decimal(curr_json["quantity_held_for_buy"])
+                        amt += to_decimal(curr_json["quantity_held_for_sell"])
                     if include_zero or amt > 0:
                         my_assets[curr] = amt
 
@@ -617,22 +613,22 @@ class Robinhood:
     @property
     def withdrawable_cash(self):
         """Cash that can be withdrawn"""
-        return Decimal(self.account_info["cash_available_for_withdrawal"])
+        return to_decimal(self.account_info["cash_available_for_withdrawal"])
 
     @property
     def buying_power(self):
         """Buying power"""
-        return Decimal(self.account_info["buying_power"])
+        return to_decimal(self.account_info["buying_power"])
 
     @property
     def cash(self):
         """Cash"""
-        return Decimal(self.account_info["cash"])
+        return to_decimal(self.account_info["cash"])
 
     @property
     def unsettled_funds(self):
         """Unsettled funds"""
-        return Decimal(self.account_info["unsettled_funds"])
+        return to_decimal(self.account_info["unsettled_funds"])
 
     def get_stocks_by_tag(self, tag):
         """Get stock list by tag

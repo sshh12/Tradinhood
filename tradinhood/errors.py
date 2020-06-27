@@ -1,3 +1,8 @@
+"""
+Tradinhood Errors
+"""
+
+
 class RobinhoodException(Exception):
     """Basic Robinhood exception"""
 

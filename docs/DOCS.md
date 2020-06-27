@@ -322,13 +322,19 @@ Attributes:
     time_in_force: (str) how the order in enforced
     created_at: (str) when the order was created
     quantity: (Decimal) quantity of the asset
-    asset_type: (str) cryptocurrency or stock
+    asset_type: (str) {'cryptocurrency', 'stock'}
     order_type: (str) order type, ex. 'market'
     extended_hours: (bool) if this was an extended hours order
+    average_price: (Decimal) the avg price of a stock in the order
+    cumulative_quantity: (Decimal) the cumulative amt of stock
     price: (Decimal) order price (or None)
     stop_price: (Decimal) the stop price (or None)
     transaction_at: (str) timestamp of the latest transaction
     asset: (Stock or Currency) the asset traded in the order, defaults None
+```
+`Order(...).details`
+```
+Fetch up-to-date info about this order
 ```
 `Order(...).state`
 ```
@@ -352,6 +358,9 @@ Attributes:
     assets: (list<Option>) the options in this order
     price: (Decimal) order price (or None)
     stop_price: (Decimal) the stop price (or None)
+    premium: (Decimal) the cost of this order
+    processed_premium: (Decimal) actual cost of this order (ie avg price)
+    processed_quantity: (Decimal) quantity processed
 ```
 `OptionsOrder(...).state`
 ```
@@ -427,6 +436,36 @@ Attributes:
 ```
 Creates session used in client
 ```
+`Robinhood(...).login(
+        self,
+        token="",
+        username="",
+        password="",
+        mfa_code="",
+        auth_hook=default_auth_hook,
+        verification="sms",
+        acc_num=None,
+        nummus_id=None,
+    )`
+```
+Login/Authenticate
+
+Args:
+    token: (str) required if username/password not given, bypasses login
+        since API token already known
+    username: (str) required login information if token not specified
+    password: (str) required login information if token not specified
+    mfa_code: (str) 2 Factor code, required if enabled on the account
+    verification: (str) The type of verification to use if required [sms, email]
+    acc_num: (str, optional) manual specify the account number
+    nummus_id: (str, optional) manual specify the nummus id
+
+Returns:
+    (bool) If login was successful
+
+Raises:
+    APIError: If login fails
+```
 `Robinhood(...).save_login(self, fn="robinhood-login")`
 ```
 Save login to file
@@ -491,9 +530,41 @@ Returns:
 Raises:
     UsageError: If used incorrectly...
 ```
+`Robinhood(...).order_options(
+        self, legs, quantity=1, price=None, type="limit", direction="debit", time_in_force="gtc", return_json=False
+    )`
+```
+Place an options order
+
+Args:
+    legs: (list<tuples(str, Option, str)>) the order legs
+    quantity: (int) amt to buy
+    type: (str, optional) the order type
+        ['market', 'limit', 'stoploss', 'stoplimit']
+    price: (int) price to purchase
+    direction: (str) order direction, ex. debit
+    time_in_force: (str, optional) when to cancel
+        ['gtc', 'gfd', 'ioc', 'opg']
+
+Returns:
+    (Order) the created order
+```
 `Robinhood(...).orders`
 ```
 Get recent order history
+```
+`Robinhood(...).query_orders(
+        self,
+        sort_by_time=True,
+        include_stocks=True,
+        include_crypto=True,
+        include_options=True,
+        pages=3,
+        lookup_assets=True,
+        state=None
+    )`
+```
+Search orders
 ```
 `Robinhood(...).wait_for_orders(self, orders, delay=5, timeout=120, force=False)`
 ```
@@ -621,6 +692,11 @@ Args:
 
 Returns:
     (dict) Options data
+```
+# tradinhood.tools
+`order_profit_loss(rbh, **kwargs)`
+```
+Pair past orders to determine trade profit/loss
 ```
 # tradinhood.traders
 ### BaseTrader
@@ -806,3 +882,4 @@ Args:
         this will cancel orders which do not finish within a timestep
     **kwargs: additional params passed to rbh.sell
 ```
+# tradinhood.util

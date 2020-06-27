@@ -1,8 +1,12 @@
+"""
+Robinhood API Objects
+"""
 from datetime import datetime
 from decimal import Decimal
 
 import tradinhood.endpoints as URL
 from tradinhood.errors import *
+from tradinhood.util import *
 
 
 class Currency:
@@ -51,17 +55,17 @@ class Currency:
     @property
     def price(self):
         """Current price"""
-        return Decimal(self.current_quote["mark_price"])
+        return to_decimal(self.current_quote["mark_price"])
 
     @property
     def ask(self):
         """Current ask price"""
-        return Decimal(self.current_quote["ask_price"])
+        return to_decimal(self.current_quote["ask_price"])
 
     @property
     def bid(self):
         """Current bid price"""
-        return Decimal(self.current_quote["bid_price"])
+        return to_decimal(self.current_quote["bid_price"])
 
     def __hash__(self):
         return hash(self.type + self.code)
@@ -146,23 +150,23 @@ class Stock:
     @property
     def price(self):
         """Current price"""
-        return Decimal(self.current_quote["last_trade_price"])
+        return to_decimal(self.current_quote["last_trade_price"])
 
     @property
     def ask(self):
         """Current ask price"""
-        return Decimal(self.current_quote["ask_price"])
+        return to_decimal(self.current_quote["ask_price"])
 
     @property
     def bid(self):
         """Current bid price"""
-        return Decimal(self.current_quote["bid_price"])
+        return to_decimal(self.current_quote["bid_price"])
 
     @property
     def popularity(self):
         """Get the number of open positions by Robinhood users"""
         pop = self.rbh._get_authed(self.instrument_url + "popularity/")["num_open_positions"]
-        return Decimal(pop)
+        return to_decimal(pop)
 
     @property
     def earnings(self):
@@ -270,9 +274,11 @@ class Order:
         time_in_force: (str) how the order in enforced
         created_at: (str) when the order was created
         quantity: (Decimal) quantity of the asset
-        asset_type: (str) cryptocurrency or stock
+        asset_type: (str) {'cryptocurrency', 'stock'}
         order_type: (str) order type, ex. 'market'
         extended_hours: (bool) if this was an extended hours order
+        average_price: (Decimal) the avg price of a stock in the order
+        cumulative_quantity: (Decimal) the cumulative amt of stock
         price: (Decimal) order price (or None)
         stop_price: (Decimal) the stop price (or None)
         transaction_at: (str) timestamp of the latest transaction
@@ -287,9 +293,11 @@ class Order:
         self.side = self.json["side"]
         self.time_in_force = self.json["time_in_force"]
         self.created_at = self.json["created_at"]
-        self.quantity = Decimal(self.json["quantity"])
+        self.quantity = to_decimal(self.json["quantity"])
         self.order_type = self.json["type"]
         self.extended_hours = self.json.get("extended_hours", False)
+        self.average_price = to_decimal(self.json.get("average_price"))
+        self.cumulative_quantity = to_decimal(self.json.get("cumulative_quantity"))
         self.transaction_at = self.json["last_transaction_at"]
         self.asset_type = asset_type
         self.asset = asset
@@ -314,14 +322,8 @@ class Order:
             self.cancel_url = self.json["cancel"]
         else:
             self.cancel_url = self.json["cancel_url"]
-        if self.json["price"] is not None:
-            self.price = Decimal(self.json["price"])
-        else:
-            self.price = None
-        if self.json.get("stop_price") is not None:
-            self.stop_price = Decimal(self.json["stop_price"])
-        else:
-            self.stop_price = None
+        self.price = to_decimal(self.json.get("price"))
+        self.stop_price = to_decimal(self.json.get("stop_price"))
 
     def _resolve_asset(self):
         if self.asset_type == "stock":
@@ -330,9 +332,14 @@ class Order:
             raise NotImplementedError()
 
     @property
+    def details(self):
+        """Fetch up-to-date info about this order"""
+        return self.rbh._get_authed(self.url)
+
+    @property
     def state(self):
         """Get order state [confirmed, queued, cancelled, filled]"""
-        return self.rbh._get_authed(self.url)["state"]
+        return self.details["state"]
 
     def cancel(self):
         """Cancel this order"""
@@ -358,6 +365,9 @@ class OptionsOrder:
         assets: (list<Option>) the options in this order
         price: (Decimal) order price (or None)
         stop_price: (Decimal) the stop price (or None)
+        premium: (Decimal) the cost of this order
+        processed_premium: (Decimal) actual cost of this order (ie avg price)
+        processed_quantity: (Decimal) quantity processed
     """
 
     def __init__(self, rbh, order_json, assets=None, lookup_assets=False):
@@ -370,14 +380,11 @@ class OptionsOrder:
         self.cancel_url = self.json["cancel_url"]
         self.url = URL.API.options_orders + self.id
         self.assets = assets
-        if self.json["price"] is not None:
-            self.price = Decimal(self.json["price"])
-        else:
-            self.price = None
-        if self.json.get("stop_price") is not None:
-            self.stop_price = Decimal(self.json["stop_price"])
-        else:
-            self.stop_price = None
+        self.price = to_decimal(self.json.get("price"))
+        self.stop_price = to_decimal(self.json.get("stop_price"))
+        self.premium = to_decimal(self.json.get("premium"))
+        self.processed_premium = to_decimal(self.json.get("processed_premium"))
+        self.processed_quantity = to_decimal(self.json.get("processed_quantity"))
         if (assets is None or len(assets) == 0) and lookup_assets:
             self._resolve_assets()
 
@@ -422,7 +429,7 @@ class Option:
         self.json = option_json
         self.chain_id = self.json["chain_id"]
         self.type_ = self.json["type"]
-        self.strike = Decimal(self.json["strike_price"])
+        self.strike = to_decimal(self.json["strike_price"])
         self.tradable = self.json["tradability"] == "tradable"
         self.url = self.json["url"]
         Option.cache[self.url] = self
@@ -453,41 +460,41 @@ class Option:
         greeks = {}
         for greek_letter in ["delta", "gamma", "theta", "rho", "vega"]:
             if stats[greek_letter] is not None:
-                greeks[greek_letter] = Decimal(stats[greek_letter])
+                greeks[greek_letter] = to_decimal(stats[greek_letter])
         return greeks
 
     @property
     def ask(self):
         """Current ask price"""
-        return Decimal(self.stats["ask_price"])
+        return to_decimal(self.stats["ask_price"])
 
     @property
     def bid(self):
         """Current bid price"""
-        return Decimal(self.stats["bid_price"])
+        return to_decimal(self.stats["bid_price"])
 
     @property
     def price(self):
         """Current price"""
         stats = self.stats
         if stats.get("last_trade_price") is not None:
-            return Decimal(stats["last_trade_price"])
+            return to_decimal(stats["last_trade_price"])
         return None
 
     @property
     def iv(self):
         """Current implied volatility"""
-        return Decimal(self.stats["implied_volatility"])
+        return to_decimal(self.stats["implied_volatility"])
 
     @property
     def volume(self):
         """Current volume"""
-        return Decimal(self.stats["volume"])
+        return to_decimal(self.stats["volume"])
 
     @property
     def open_interest(self):
         """Current open interest"""
-        return Decimal(self.stats["open_interest"])
+        return to_decimal(self.stats["open_interest"])
 
     def __repr__(self):
         return f"<Option {self.type_.upper()} @ {self.strike} for {self.asset}>"
