@@ -272,9 +272,9 @@ class Order:
         quantity: (Decimal) quantity of the asset
         asset_type: (str) cryptocurrency or stock
         order_type: (str) order type, ex. 'market'
-        price: (Decimal) order price (or None)
         extended_hours: (bool) if this was an extended hours order
-        stop_price: (Deciaml) the stop price, None if not a stop order
+        price: (Decimal) order price (or None)
+        stop_price: (Decimal) the stop price (or None)
         transaction_at: (str) timestamp of the latest transaction
         asset: (Stock or Currency) the asset traded in the order, defaults None
     """
@@ -314,11 +314,11 @@ class Order:
             self.cancel_url = self.json["cancel"]
         else:
             self.cancel_url = self.json["cancel_url"]
-        if self.json["price"]:
+        if self.json["price"] is not None:
             self.price = Decimal(self.json["price"])
         else:
             self.price = None
-        if "stop_price" in self.json and self.json["stop_price"]:
+        if self.json.get("stop_price") is not None:
             self.stop_price = Decimal(self.json["stop_price"])
         else:
             self.stop_price = None
@@ -356,6 +356,8 @@ class OptionsOrder:
         ref_id: (str) the order ref id
         created_at: (str) when the order was created
         assets: (list<Option>) the options in this order
+        price: (Decimal) order price (or None)
+        stop_price: (Decimal) the stop price (or None)
     """
 
     def __init__(self, rbh, order_json, assets=None, lookup_assets=False):
@@ -368,6 +370,14 @@ class OptionsOrder:
         self.cancel_url = self.json["cancel_url"]
         self.url = URL.API.options_orders + self.id
         self.assets = assets
+        if self.json["price"] is not None:
+            self.price = Decimal(self.json["price"])
+        else:
+            self.price = None
+        if self.json.get("stop_price") is not None:
+            self.stop_price = Decimal(self.json["stop_price"])
+        else:
+            self.stop_price = None
         if (assets is None or len(assets) == 0) and lookup_assets:
             self._resolve_assets()
 

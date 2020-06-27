@@ -36,7 +36,7 @@ Creates the dataset with predefined params
 
        This is meant to be called only from the internal `from_...()` class methods
 ```
-`Dataset.from_google(symbol, resolution='1d', period='20d', exchange='NASD')`
+`Dataset.from_google(symbol, resolution="1d", period="20d", exchange="NASD")`
 ```
 Fetch data from google
 
@@ -54,7 +54,7 @@ Returns:
 Note:
     No longer supported by Google.
 ```
-`Dataset.from_alphavantage(symbol, resolution='1d', api_key='demo')`
+`Dataset.from_alphavantage(symbol, resolution="1d", api_key="demo")`
 ```
 Fetch data from AlphaVantage
 
@@ -65,7 +65,7 @@ Args:
 Returns:
     (Dataset) with prescribed params and data
 ```
-`Dataset.from_cryptocompare(symbol, resolution='1d', to_symbol='USD', limit=3000, last_unix_time=None)`
+`Dataset.from_cryptocompare(symbol, resolution="1d", to_symbol="USD", limit=3000, last_unix_time=None)`
 ```
 Fetch data from cryptocompare
 
@@ -81,7 +81,7 @@ Args:
 Returns:
     (Dataset) with prescribed params and data
 ```
-`Dataset.from_robinhood(asset, resolution='1d')`
+`Dataset.from_robinhood(asset, resolution="1d")`
 ```
 Fetch data from Robinhood
 
@@ -133,7 +133,7 @@ Args:
 Returns:
     (Dataframe) with data from dataset
 ```
-`Dataset(...).plot(self, columns=['close'], symbols=None, ax=None, show=False)`
+`Dataset(...).plot(self, columns=["close"], symbols=None, ax=None, show=False)`
 ```
 Plot
 
@@ -197,7 +197,7 @@ Attributes:
     pair_id: (str) currency Pair id
     asset_id: (str) the APIs id for this currency
 ```
-`Currency(...).history(self, bounds='24_7', interval='day', span='year')`
+`Currency(...).history(self, bounds="24_7", interval="day", span="year")`
 ```
 Retrieve the price history of this crypto
 ```
@@ -248,7 +248,7 @@ Create a stock from its instrument url
 ```
 Create a stock from its instrument id
 ```
-`Stock(...).history(self, bounds='regular', interval='day', span='year')`
+`Stock(...).history(self, bounds="regular", interval="day", span="year")`
 ```
 Retrieve the price history of this stock
 ```
@@ -284,7 +284,7 @@ Get the earnings history and estimates
 ```
 Get stock fundamentals
 ```
-`Stock(...).query_options(self, state='active', expiration_dates=None, type_=None, pages=1)`
+`Stock(...).query_options(self, state="active", expiration_dates=None, type_=None, pages=1)`
 ```
 Get options for this stock
 
@@ -317,16 +317,17 @@ Order object
 Attributes:
     json: (dict) internal data json
     id: (str) the order id
-    side: (str) buy or sell
+    ref_id: (str) the order ref id
+    side: (str) {'sell', 'buy'}
     time_in_force: (str) how the order in enforced
     created_at: (str) when the order was created
     quantity: (Decimal) quantity of the asset
     asset_type: (str) cryptocurrency or stock
-    cancel_url: (str) the url to cancel the order
-    price: (Decimal) the price set in the order,
-        this can be None
-    stop_price: (Deciaml) the stop price, None if not a stop order
-    symbol: (str) the symbol traded in the order, defaults None
+    order_type: (str) order type, ex. 'market'
+    extended_hours: (bool) if this was an extended hours order
+    price: (Decimal) order price (or None)
+    stop_price: (Decimal) the stop price (or None)
+    transaction_at: (str) timestamp of the latest transaction
     asset: (Stock or Currency) the asset traded in the order, defaults None
 ```
 `Order(...).state`
@@ -334,6 +335,29 @@ Attributes:
 Get order state [confirmed, queued, cancelled, filled]
 ```
 `Order(...).cancel`
+```
+Cancel this order
+```
+### OptionsOrder
+`OptionsOrder`
+```
+Options Order object
+
+Attributes:
+    json: (dict) internal data json
+    id: (string) robinhood id
+    direction: (string) the order direct, ex. debit
+    ref_id: (str) the order ref id
+    created_at: (str) when the order was created
+    assets: (list<Option>) the options in this order
+    price: (Decimal) order price (or None)
+    stop_price: (Decimal) the stop price (or None)
+```
+`OptionsOrder(...).state`
+```
+Get order state [confirmed, queued, cancelled, filled]
+```
+`OptionsOrder(...).cancel`
 ```
 Cancel this order
 ```
@@ -370,9 +394,17 @@ Current ask price
 ```
 Current bid price
 ```
+`Option(...).price`
+```
+Current price
+```
 `Option(...).iv`
 ```
 Current implied volatility
+```
+`Option(...).volume`
+```
+Current volume
 ```
 `Option(...).open_interest`
 ```
@@ -395,11 +427,11 @@ Attributes:
 ```
 Creates session used in client
 ```
-`Robinhood(...).save_login(self, fn='robinhood-login')`
+`Robinhood(...).save_login(self, fn="robinhood-login")`
 ```
 Save login to file
 ```
-`Robinhood(...).load_login(self, fn='robinhood-login')`
+`Robinhood(...).load_login(self, fn="robinhood-login")`
 ```
 Login from file
 ```
@@ -417,13 +449,13 @@ Returns:
 Raises:
     UsageError: If the asset is not valid
 ```
-`Robinhood(...).buy(self, asset, amt, **kwargs)`
+`Robinhood(...).buy(self, asset, **kwargs)`
 ```
 Buy item
 
 Args:
-    asset: (Currency | Stock | str) the asset to be bought
-    amt: (Decimal | float | int) the amt to buy
+    asset: (Currency | Stock, str) the asset to be bought
+    quantity: (Decimal | float | int) the amt to buy
     type: (str, optional) the order type
         ['market', 'limit', 'stoploss', 'stoplimit']
     price: (Decimal | float | int) the order price
@@ -438,13 +470,13 @@ Returns:
 Raises:
     UsageError: If used incorrectly...
 ```
-`Robinhood(...).sell(self, asset, amt, **kwargs)`
+`Robinhood(...).sell(self, asset, **kwargs)`
 ```
 Sell item
 
 Args:
     asset: (Currency | Stock | str) tthe asset to be sold
-    amt: (Decimal | float | int) The amt to sell
+    quantity: (Decimal | float | int) The amt to sell
     type: (str, optional) the order type
         ['market', 'limit', 'stoploss', 'stoplimit']
     price: (Decimal | float | int) the order price
@@ -462,10 +494,6 @@ Raises:
 `Robinhood(...).orders`
 ```
 Get recent order history
-```
-`Robinhood(...).query_orders(self, sort_by_time=True, include_stocks=True, include_crypto=True, pages=3, lookup_assets=True)`
-```
-Search orders
 ```
 `Robinhood(...).wait_for_orders(self, orders, delay=5, timeout=120, force=False)`
 ```
@@ -531,7 +559,7 @@ Args:
 Returns:
     (tuple str, list<Stock>) The name and list of stocks
 ```
-`Robinhood(...).history(self, bounds='trading', interval='5minute', span='day', account_id=None)`
+`Robinhood(...).history(self, bounds="trading", interval="5minute", span="day", account_id=None)`
 ```
 Get portfolio value history
 
@@ -552,7 +580,7 @@ Get the unified data of the account
 ```
 Get the data about the account user
 ```
-`Robinhood(...).get_bulk_prices(self, stocks, bounds='trading', include_inactive=True)`
+`Robinhood(...).get_bulk_prices(self, stocks, bounds="trading", include_inactive=True)`
 ```
 Get the prices of multiple stocks at the same time
 
@@ -617,7 +645,7 @@ Convert log to a pandas DataFrame
 Returns:
     (DataFrame)
 ```
-`BaseTrader(...).plot(self, columns=['end_portfolio_value', 'end_cash'], ax=None, show=False)`
+`BaseTrader(...).plot(self, columns=["end_portfolio_value", "end_cash"], ax=None, show=False)`
 ```
 Plot money
 
@@ -735,7 +763,7 @@ Attributes:
     rbh: (Robinhood*) a robinhood client
     resolution: (str) the trade resolution/frequency
 ```
-`Robinhood(BaseTrader)(...).start(self, robinhood, resolution='1d', until=None)`
+`Robinhood(BaseTrader)(...).start(self, robinhood, resolution="1d", until=None)`
 ```
 Starts live trading
 
