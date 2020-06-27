@@ -7,7 +7,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="tradinhood",
-    version="0.3.0",
+    version="0.4.0",
     author="Shrivu Shankar",
     author_email="shrivu1122@gmail.com",
     description="Programmatically trading stocks and crypto through backtests and Robinhood.",
@@ -19,5 +19,5 @@ setuptools.setup(
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
-    ]
+    ],
 )
