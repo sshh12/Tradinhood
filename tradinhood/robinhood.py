@@ -51,13 +51,6 @@ class Robinhood:
         self.session = requests.session()
         self.session.headers = API_HEADERS
         self.device_token = gen_ref_id()
-        self._load()
-
-    def _load(self):
-        """Inits basic internal information"""
-        asset_currs = self._get_pagination(URL.Nummus.currency_pairs, auth=False)
-        for curr_json in asset_currs:
-            currency = Currency(self, curr_json)
 
     def _get_pagination(self, start_url, auth=True, pages=100):
         results = []
@@ -111,7 +104,9 @@ class Robinhood:
         Raises:
             APIError: If logged in but no account found
         """
-        assert self.logged_in
+        asset_currs = self._get_pagination(URL.Nummus.currency_pairs)
+        for curr_json in asset_currs:
+            currency = Currency(self, curr_json)
         try:
             if not acc_num:
                 res_json = self._get_pagination(URL.API.accounts)
@@ -504,7 +499,7 @@ class Robinhood:
         include_options=True,
         pages=3,
         lookup_assets=True,
-        state=None
+        state=None,
     ):
         """Search orders"""
         orders = []
@@ -520,7 +515,7 @@ class Robinhood:
             json_options = self._get_pagination(URL.API.options_orders, pages=pages)
             orders += [OptionsOrder(self, json_data, lookup_assets=lookup_assets) for json_data in json_options]
         if state is not None:
-            orders = [order for order in orders if order.json['state'] == state]
+            orders = [order for order in orders if order.json["state"] == state]
         if sort_by_time:
             orders.sort(key=lambda o: o.created_at, reverse=True)
         return orders
