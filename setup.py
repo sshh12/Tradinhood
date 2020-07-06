@@ -7,7 +7,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="tradinhood",
-    version="0.4.1",
+    version="0.4.2",
     author="Shrivu Shankar",
     author_email="shrivu1122@gmail.com",
     description="Programmatically trading stocks and crypto through backtests and Robinhood.",

@@ -164,14 +164,18 @@ class Robinhood:
             self.token = token
             self.session.headers["Authorization"] = "Bearer " + self.token
             self.logged_in = True
-            self._load_auth(acc_num)
-            return True
+            try:
+                self._load_auth(acc_num)
+                return True
+            except Exception:
+                self.token = None
+                del self.session.headers["Authorization"]
+                self.logged_in = False
+                return False
 
         if not username or not password:
-            import getpass
-
-            username = input("Username: ")
-            password = getpass.getpass("Password (Hidden): ")
+            username = auth_hook("username")
+            password = auth_hook("password")
 
         req_json = {
             "client_id": OAUTH_CLIENT_ID,
@@ -238,7 +242,9 @@ class Robinhood:
         """Login from file"""
         with open(fn, "r") as save_fp:
             token = save_fp.read()
-        self.login(token=token)
+        if not self.login(token=token):
+            self.login()
+            self.save_login(fn=fn)
 
     def __repr__(self):
         return "<Robinhood [Account: {}]>".format(self.acc_num)
@@ -662,7 +668,7 @@ class Robinhood:
     @property
     def unified_data(self):
         """Get the unified data of the account"""
-        return self._get_authed(URL.API.unified)
+        return self._get_authed(URL.Phoenix.unified)
 
     @property
     def user_data(self):
